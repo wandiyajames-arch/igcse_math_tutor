@@ -84,7 +84,7 @@ python src/rag/vector_store.py
 python src/agent/ui.py
 ```
 
-The app will be available at **http://0.0.0.0:7860/**
+The app will be available at **https://huggingface.co/spaces/wandiya39/IGCSE-Math-Tutor**
 
 ---
 
