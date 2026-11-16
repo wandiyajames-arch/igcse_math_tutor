@@ -1,0 +1,87 @@
+{"response_id": "pilot-num-001-r1", "item_id": "pilot-num-001", "answer": "4.52×10^3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-002-r1", "item_id": "pilot-num-002", "answer": "4523", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-003-r1", "item_id": "pilot-num-003", "answer": "4520", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-004-r1", "item_id": "pilot-num-004", "answer": "13", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-005-r1", "item_id": "pilot-num-005", "answer": "12", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-006-r1", "item_id": "pilot-num-006", "answer": "12.35", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-007-r1", "item_id": "pilot-num-007", "answer": "12.34", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-008-r1", "item_id": "pilot-num-008", "answer": "12", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-009-r1", "item_id": "pilot-num-009", "answer": "78.5", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-010-r1", "item_id": "pilot-num-010", "answer": "78.55", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-011-r1", "item_id": "pilot-num-011", "answer": "2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-012-r1", "item_id": "pilot-num-012", "answer": "3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-013-r1", "item_id": "pilot-num-013", "answer": "0.0004", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-014-r1", "item_id": "pilot-num-014", "answer": "16/6", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-015-r1", "item_id": "pilot-num-015", "answer": "2.66", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-016-r1", "item_id": "pilot-num-016", "answer": "1.5 m", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-017-r1", "item_id": "pilot-num-017", "answer": "150 cm", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-018-r1", "item_id": "pilot-num-018", "answer": "3, 4", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-019-r1", "item_id": "pilot-num-019", "answer": "5600", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-020-r1", "item_id": "pilot-num-020", "answer": "5600", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-020b-r1", "item_id": "pilot-num-020b", "answer": "5600", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-020c-r1", "item_id": "pilot-num-020c", "answer": "0", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-021-r1", "item_id": "pilot-num-021", "answer": "2.667", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-022-r1", "item_id": "pilot-num-022", "answer": "0.5", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-023-r1", "item_id": "pilot-num-023", "answer": "45×10^2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-024-r1", "item_id": "pilot-num-024", "answer": "0.333", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-025-r1", "item_id": "pilot-num-025", "answer": "7.0", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-026-r1", "item_id": "pilot-num-026", "answer": "0.667", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-num-027-r1", "item_id": "pilot-num-027", "answer": "2.35", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-num-028-r1", "item_id": "pilot-num-028", "answer": "2.6", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-ang-001-r1", "item_id": "pilot-ang-001", "answer": "36.9", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-ang-002-r1", "item_id": "pilot-ang-002", "answer": "37", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-bea-001-r1", "item_id": "pilot-bea-001", "answer": "025", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-bea-002-r1", "item_id": "pilot-bea-002", "answer": "25", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-bea-003-r1", "item_id": "pilot-bea-003", "answer": "50/2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-001-r1", "item_id": "pilot-exa-001", "answer": "-4π+100", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-002-r1", "item_id": "pilot-exa-002", "answer": "87.43", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-003-r1", "item_id": "pilot-exa-003", "answer": "4(25-π)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-004-r1", "item_id": "pilot-exa-004", "answer": "100+-4π", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-005-r1", "item_id": "pilot-exa-005", "answer": "1π/2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-006-r1", "item_id": "pilot-exa-006", "answer": "(1/2)π", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-007-r1", "item_id": "pilot-exa-007", "answer": "√18", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-008-r1", "item_id": "pilot-exa-008", "answer": "√16", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-009-r1", "item_id": "pilot-exa-009", "answer": "4", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-010-r1", "item_id": "pilot-exa-010", "answer": "√2×√3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-011-r1", "item_id": "pilot-exa-011", "answer": "3×-√2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-012-r1", "item_id": "pilot-exa-012", "answer": "2/√3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-013-r1", "item_id": "pilot-exa-013", "answer": "√12/3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-014-r1", "item_id": "pilot-exa-014", "answer": "(-5)/6", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-015-r1", "item_id": "pilot-exa-015", "answer": "5/-6", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-016-r1", "item_id": "pilot-exa-016", "answer": "√4/2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-017-r1", "item_id": "pilot-exa-017", "answer": "4", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-018-r1", "item_id": "pilot-exa-018", "answer": "π^2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-019-r1", "item_id": "pilot-exa-019", "answer": "12π+√2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exa-020-r1", "item_id": "pilot-exa-020", "answer": "11π", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-001-r1", "item_id": "pilot-exp-001", "answer": "2a+3b+5a-9b", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-002-r1", "item_id": "pilot-exp-002", "answer": "-6b+7a", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-003-r1", "item_id": "pilot-exp-003", "answer": "7a+(-6b)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-004-r1", "item_id": "pilot-exp-004", "answer": "7a-5b", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-005-r1", "item_id": "pilot-exp-005", "answer": "(x+1)(x-1)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-006-r1", "item_id": "pilot-exp-006", "answer": "2x+6", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-007-r1", "item_id": "pilot-exp-007", "answer": "2(x^2-4)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-008-r1", "item_id": "pilot-exp-008", "answer": "(2x+4)(x-2)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-009-r1", "item_id": "pilot-exp-009", "answer": "-(2-x)(x+2)", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-010-r1", "item_id": "pilot-exp-010", "answer": "(-x)^2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-011-r1", "item_id": "pilot-exp-011", "answer": "x×x", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-012-r1", "item_id": "pilot-exp-012", "answer": "√(x^4)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-013-r1", "item_id": "pilot-exp-013", "answer": "(x^2-1)/(x-1)", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-014-r1", "item_id": "pilot-exp-014", "answer": "(x^2-1)/(x-1)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-015-r1", "item_id": "pilot-exp-015", "answer": "2x/4", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-016-r1", "item_id": "pilot-exp-016", "answer": "0.5x", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-017-r1", "item_id": "pilot-exp-017", "answer": "0.5x", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-018-r1", "item_id": "pilot-exp-018", "answer": "2(x+3)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-019-r1", "item_id": "pilot-exp-019", "answer": "2x+6", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-020-r1", "item_id": "pilot-exp-020", "answer": "1/(x-x)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-021-r1", "item_id": "pilot-exp-021", "answer": "(x+y+z+1)^20", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-exp-022-r1", "item_id": "pilot-exp-022", "answer": "1/2x", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-sol-001-r1", "item_id": "pilot-sol-001", "answer": "x = 3 or x = -2", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-sol-002-r1", "item_id": "pilot-sol-002", "answer": "3, 3", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-sol-003-r1", "item_id": "pilot-sol-003", "answer": "3, -2, 5", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-sol-004-r1", "item_id": "pilot-sol-004", "answer": "x^2 = 9", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-sol-005-r1", "item_id": "pilot-sol-005", "answer": "1.414, 1.41", "source": "correct_form", "source_note": "pipeline test"}
+{"response_id": "pilot-crd-001-r1", "item_id": "pilot-crd-001", "answer": "(-2, 3)", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-crd-002-r1", "item_id": "pilot-crd-002", "answer": "3, -2", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-rat-001-r1", "item_id": "pilot-rat-001", "answer": "20:30:40", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-rat-002-r1", "item_id": "pilot-rat-002", "answer": "3:2:4", "source": "examiner_report", "source_note": "pipeline test"}
+{"response_id": "pilot-rat-003-r1", "item_id": "pilot-rat-003", "answer": "2:3:4", "source": "correct_form", "source_note": "pipeline test"}
