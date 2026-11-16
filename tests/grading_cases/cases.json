@@ -1,0 +1,1099 @@
+[
+ {
+  "id": "num-001",
+  "spec": {
+   "type": "numeric",
+   "value": "4523",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 0
+   }
+  },
+  "answer": "4.52×10^3",
+  "expect": "insufficient_accuracy",
+  "basis": "P1-T7b table"
+ },
+ {
+  "id": "num-002",
+  "spec": {
+   "type": "numeric",
+   "value": "4523",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 0
+   }
+  },
+  "answer": "4523",
+  "expect": "correct",
+  "basis": "exact equality"
+ },
+ {
+  "id": "num-003",
+  "spec": {
+   "type": "numeric",
+   "value": "4523",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 0
+   }
+  },
+  "answer": "4520",
+  "expect": "wrong_value",
+  "basis": "K24 integer read at units place"
+ },
+ {
+  "id": "num-004",
+  "spec": {
+   "type": "numeric",
+   "value": "12.5",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 0
+   }
+  },
+  "answer": "13",
+  "expect": "correct",
+  "basis": "half-up (policy 2)"
+ },
+ {
+  "id": "num-005",
+  "spec": {
+   "type": "numeric",
+   "value": "12.5",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 0
+   }
+  },
+  "answer": "12",
+  "expect": "rounding_error",
+  "basis": "truncated"
+ },
+ {
+  "id": "num-006",
+  "spec": {
+   "type": "numeric",
+   "value": "12.345"
+  },
+  "answer": "12.35",
+  "expect": "wrong_value",
+  "basis": "F12 erratum: 12.35 rounds to 12.4"
+ },
+ {
+  "id": "num-007",
+  "spec": {
+   "type": "numeric",
+   "value": "12.345"
+  },
+  "answer": "12.34",
+  "expect": "correct",
+  "basis": "more precise accepted (P1-D2)"
+ },
+ {
+  "id": "num-008",
+  "spec": {
+   "type": "numeric",
+   "value": "12.345"
+  },
+  "answer": "12",
+  "expect": "insufficient_accuracy",
+  "basis": "R1 3 s.f."
+ },
+ {
+  "id": "num-009",
+  "spec": {
+   "type": "numeric",
+   "value": "25π"
+  },
+  "answer": "78.5",
+  "expect": "correct",
+  "basis": "R5 calculator π"
+ },
+ {
+  "id": "num-010",
+  "spec": {
+   "type": "numeric",
+   "value": "25π"
+  },
+  "answer": "78.55",
+  "expect": "correct",
+  "basis": "R5 π = 3.142"
+ },
+ {
+  "id": "num-011",
+  "spec": {
+   "type": "numeric",
+   "value": "√2×√2"
+  },
+  "answer": "2",
+  "expect": "equivalence_unconfirmed",
+  "basis": "P1-D4: cannot certify equality"
+ },
+ {
+  "id": "num-012",
+  "spec": {
+   "type": "numeric",
+   "value": "√2×√2"
+  },
+  "answer": "3",
+  "expect": "wrong_value",
+  "basis": "certified membership"
+ },
+ {
+  "id": "num-013",
+  "spec": {
+   "type": "numeric",
+   "value": "0.0004"
+  },
+  "answer": "0.0004",
+  "expect": "correct",
+  "basis": "F12 erratum: exact equality wins"
+ },
+ {
+  "id": "num-014",
+  "spec": {
+   "type": "numeric",
+   "value": "8/3"
+  },
+  "answer": "16/6",
+  "expect": "not_simplified",
+  "basis": "R10"
+ },
+ {
+  "id": "num-015",
+  "spec": {
+   "type": "numeric",
+   "value": "8/3"
+  },
+  "answer": "2.66",
+  "expect": "rounding_error",
+  "basis": "truncated"
+ },
+ {
+  "id": "num-016",
+  "spec": {
+   "type": "numeric",
+   "value": "150",
+   "unit": "cm"
+  },
+  "answer": "1.5 m",
+  "expect": "wrong_unit",
+  "basis": "interpretation 3"
+ },
+ {
+  "id": "num-017",
+  "spec": {
+   "type": "numeric",
+   "value": "150"
+  },
+  "answer": "150 cm",
+  "expect": "unexpected_unit",
+  "basis": "policy 5"
+ },
+ {
+  "id": "num-018",
+  "spec": {
+   "type": "numeric",
+   "value": "150"
+  },
+  "answer": "3, 4",
+  "expect": "multiple_answers",
+  "basis": "policy 3"
+ },
+ {
+  "id": "num-019",
+  "spec": {
+   "type": "numeric",
+   "value": "5600"
+  },
+  "answer": "5600",
+  "expect": "correct",
+  "basis": "exact equality regardless of reading"
+ },
+ {
+  "id": "num-020",
+  "spec": {
+   "type": "numeric",
+   "value": "5600.4"
+  },
+  "answer": "5600",
+  "expect": "ambiguous_significant_figures",
+  "basis": "policy 4: 3-4 s.f. readings correct, 2 s.f. reading insufficient"
+ },
+ {
+  "id": "num-020b",
+  "spec": {
+   "type": "numeric",
+   "value": "5649"
+  },
+  "answer": "5600",
+  "expect": "wrong_value",
+  "basis": "interpretation 7: every reading incorrect, finest reading decides"
+ },
+ {
+  "id": "num-020c",
+  "spec": {
+   "type": "numeric",
+   "value": "0",
+   "accuracy": {
+    "kind": "dp",
+    "digits": 1
+   }
+  },
+  "answer": "0",
+  "expect": "correct",
+  "basis": "zero value, exact equality"
+ },
+ {
+  "id": "num-021",
+  "spec": {
+   "type": "numeric",
+   "value": "2.6666",
+   "allow_more_precise": false
+  },
+  "answer": "2.667",
+  "expect": "wrong_form",
+  "basis": "interpretation 4"
+ },
+ {
+  "id": "num-022",
+  "spec": {
+   "type": "numeric",
+   "value": "0.5",
+   "required_form": "fraction"
+  },
+  "answer": "0.5",
+  "expect": "wrong_form",
+  "basis": "required form"
+ },
+ {
+  "id": "num-023",
+  "spec": {
+   "type": "numeric",
+   "value": "4500",
+   "required_form": "standard_form"
+  },
+  "answer": "45×10^2",
+  "expect": "wrong_form",
+  "basis": "R8 mantissa 1–10"
+ },
+ {
+  "id": "num-024",
+  "spec": {
+   "type": "numeric",
+   "value": "1/3"
+  },
+  "answer": "0.333",
+  "expect": "correct",
+  "basis": "R1"
+ },
+ {
+  "id": "num-025",
+  "spec": {
+   "type": "numeric",
+   "value": "7",
+   "accuracy": {
+    "kind": "exact",
+    "digits": null
+   }
+  },
+  "answer": "7.0",
+  "expect": "correct",
+  "basis": "interpretation 6"
+ },
+ {
+  "id": "num-026",
+  "spec": {
+   "type": "numeric",
+   "value": "2/3",
+   "accuracy": {
+    "kind": "exact",
+    "digits": null
+   }
+  },
+  "answer": "0.667",
+  "expect": "rounded_exact_value",
+  "basis": "R2"
+ },
+ {
+  "id": "num-027",
+  "spec": {
+   "type": "numeric",
+   "value": "2.4",
+   "accept_range": [
+    "2.3",
+    "2.5"
+   ]
+  },
+  "answer": "2.35",
+  "expect": "correct",
+  "basis": "R14 range"
+ },
+ {
+  "id": "num-028",
+  "spec": {
+   "type": "numeric",
+   "value": "2.4",
+   "accept_range": [
+    "2.3",
+    "2.5"
+   ]
+  },
+  "answer": "2.6",
+  "expect": "wrong_value",
+  "basis": "range authoritative"
+ },
+ {
+  "id": "ang-001",
+  "spec": {
+   "type": "angle",
+   "value": "36.87"
+  },
+  "answer": "36.9",
+  "expect": "correct",
+  "basis": "R6"
+ },
+ {
+  "id": "ang-002",
+  "spec": {
+   "type": "angle",
+   "value": "36.87"
+  },
+  "answer": "37",
+  "expect": "insufficient_accuracy",
+  "basis": "R6 1 d.p."
+ },
+ {
+  "id": "bea-001",
+  "spec": {
+   "type": "bearing",
+   "value": "25"
+  },
+  "answer": "025",
+  "expect": "correct",
+  "basis": "R7"
+ },
+ {
+  "id": "bea-002",
+  "spec": {
+   "type": "bearing",
+   "value": "25"
+  },
+  "answer": "25",
+  "expect": "bearing_not_three_figure",
+  "basis": "policy 7"
+ },
+ {
+  "id": "bea-003",
+  "spec": {
+   "type": "bearing",
+   "value": "25"
+  },
+  "answer": "50/2",
+  "expect": "wrong_form",
+  "basis": "interpretation 13"
+ },
+ {
+  "id": "exa-001",
+  "spec": {
+   "type": "exact",
+   "value": "100-4π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "-4π+100",
+  "expect": "correct",
+  "basis": "interpretation 20"
+ },
+ {
+  "id": "exa-002",
+  "spec": {
+   "type": "exact",
+   "value": "100-4π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "87.43",
+  "expect": "wrong_form",
+  "basis": "R4"
+ },
+ {
+  "id": "exa-003",
+  "spec": {
+   "type": "exact",
+   "value": "100-4π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "4(25-π)",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 27"
+ },
+ {
+  "id": "exa-004",
+  "spec": {
+   "type": "exact",
+   "value": "100-4π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "100+-4π",
+  "expect": "not_simplified",
+  "basis": "interpretation 25"
+ },
+ {
+  "id": "exa-005",
+  "spec": {
+   "type": "exact",
+   "value": "π/2",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "1π/2",
+  "expect": "not_simplified",
+  "basis": "interpretation 22"
+ },
+ {
+  "id": "exa-006",
+  "spec": {
+   "type": "exact",
+   "value": "π/2",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "(1/2)π",
+  "expect": "correct",
+  "basis": "interpretation 22"
+ },
+ {
+  "id": "exa-007",
+  "spec": {
+   "type": "exact",
+   "value": "3√2",
+   "required_form": "surd"
+  },
+  "answer": "√18",
+  "expect": "not_simplified",
+  "basis": "interpretation 16"
+ },
+ {
+  "id": "exa-008",
+  "spec": {
+   "type": "exact",
+   "value": "3√2",
+   "required_form": "surd"
+  },
+  "answer": "√16",
+  "expect": "not_simplified",
+  "basis": "interpretation 28"
+ },
+ {
+  "id": "exa-009",
+  "spec": {
+   "type": "exact",
+   "value": "3√2",
+   "required_form": "surd"
+  },
+  "answer": "4",
+  "expect": "wrong_form",
+  "basis": "interpretation 14"
+ },
+ {
+  "id": "exa-010",
+  "spec": {
+   "type": "exact",
+   "value": "3√2",
+   "required_form": "surd"
+  },
+  "answer": "√2×√3",
+  "expect": "not_simplified",
+  "basis": "interpretation 29"
+ },
+ {
+  "id": "exa-011",
+  "spec": {
+   "type": "exact",
+   "value": "3√2",
+   "required_form": "surd"
+  },
+  "answer": "3×-√2",
+  "expect": "not_simplified",
+  "basis": "interpretation 25"
+ },
+ {
+  "id": "exa-012",
+  "spec": {
+   "type": "exact",
+   "value": "2√3/3",
+   "required_form": "surd"
+  },
+  "answer": "2/√3",
+  "expect": "not_simplified",
+  "basis": "interpretation 15"
+ },
+ {
+  "id": "exa-013",
+  "spec": {
+   "type": "exact",
+   "value": "2√3/3",
+   "required_form": "surd"
+  },
+  "answer": "√12/3",
+  "expect": "not_simplified",
+  "basis": "interpretation 16"
+ },
+ {
+  "id": "exa-014",
+  "spec": {
+   "type": "exact",
+   "value": "-5/6",
+   "required_form": "fraction_simplest"
+  },
+  "answer": "(-5)/6",
+  "expect": "correct",
+  "basis": "interpretation 25"
+ },
+ {
+  "id": "exa-015",
+  "spec": {
+   "type": "exact",
+   "value": "-5/6",
+   "required_form": "fraction_simplest"
+  },
+  "answer": "5/-6",
+  "expect": "not_simplified",
+  "basis": "interpretation 18"
+ },
+ {
+  "id": "exa-016",
+  "spec": {
+   "type": "exact",
+   "value": "-5/6",
+   "required_form": "fraction_simplest"
+  },
+  "answer": "√4/2",
+  "expect": "wrong_form",
+  "basis": "interpretation 26"
+ },
+ {
+  "id": "exa-017",
+  "spec": {
+   "type": "exact",
+   "value": "√16",
+   "required_form": "surd"
+  },
+  "answer": "4",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 24 spec self-check"
+ },
+ {
+  "id": "exa-018",
+  "spec": {
+   "type": "exact",
+   "value": "12π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "π^2",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 17"
+ },
+ {
+  "id": "exa-019",
+  "spec": {
+   "type": "exact",
+   "value": "12π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "12π+√2",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 23"
+ },
+ {
+  "id": "exa-020",
+  "spec": {
+   "type": "exact",
+   "value": "12π",
+   "required_form": "in_terms_of_pi"
+  },
+  "answer": "11π",
+  "expect": "wrong_value",
+  "basis": "value"
+ },
+ {
+  "id": "exp-001",
+  "spec": {
+   "type": "expression",
+   "value": "7a-6b",
+   "variables": [
+    "a",
+    "b"
+   ]
+  },
+  "answer": "2a+3b+5a-9b",
+  "expect": "not_simplified",
+  "basis": "mandatory case, interpretation 30"
+ },
+ {
+  "id": "exp-002",
+  "spec": {
+   "type": "expression",
+   "value": "7a-6b",
+   "variables": [
+    "a",
+    "b"
+   ]
+  },
+  "answer": "-6b+7a",
+  "expect": "correct",
+  "basis": "oe reordering"
+ },
+ {
+  "id": "exp-003",
+  "spec": {
+   "type": "expression",
+   "value": "7a-6b",
+   "variables": [
+    "a",
+    "b"
+   ]
+  },
+  "answer": "7a+(-6b)",
+  "expect": "not_simplified",
+  "basis": "interpretation 31"
+ },
+ {
+  "id": "exp-004",
+  "spec": {
+   "type": "expression",
+   "value": "7a-6b",
+   "variables": [
+    "a",
+    "b"
+   ]
+  },
+  "answer": "7a-5b",
+  "expect": "wrong_value",
+  "basis": "exact counterexample"
+ },
+ {
+  "id": "exp-005",
+  "spec": {
+   "type": "expression",
+   "value": "x^2-1",
+   "variables": [
+    "x"
+   ],
+   "required_form": "expanded"
+  },
+  "answer": "(x+1)(x-1)",
+  "expect": "not_expanded",
+  "basis": "interpretation 35"
+ },
+ {
+  "id": "exp-006",
+  "spec": {
+   "type": "expression",
+   "value": "2(x+3)",
+   "variables": [
+    "x"
+   ],
+   "required_form": "factorised_fully"
+  },
+  "answer": "2x+6",
+  "expect": "not_fully_factorised",
+  "basis": "R9"
+ },
+ {
+  "id": "exp-007",
+  "spec": {
+   "type": "expression",
+   "value": "2(x+2)(x-2)",
+   "variables": [
+    "x"
+   ],
+   "required_form": "factorised_fully"
+  },
+  "answer": "2(x^2-4)",
+  "expect": "not_fully_factorised",
+  "basis": "interpretation 36"
+ },
+ {
+  "id": "exp-008",
+  "spec": {
+   "type": "expression",
+   "value": "2(x+2)(x-2)",
+   "variables": [
+    "x"
+   ],
+   "required_form": "factorised_fully"
+  },
+  "answer": "(2x+4)(x-2)",
+  "expect": "not_fully_factorised",
+  "basis": "interpretation 36 content"
+ },
+ {
+  "id": "exp-009",
+  "spec": {
+   "type": "expression",
+   "value": "(x-2)(x+2)",
+   "variables": [
+    "x"
+   ],
+   "required_form": "factorised_fully"
+  },
+  "answer": "-(2-x)(x+2)",
+  "expect": "correct",
+  "basis": "interpretation 36 sign arrangement free"
+ },
+ {
+  "id": "exp-010",
+  "spec": {
+   "type": "expression",
+   "value": "x^2",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "(-x)^2",
+  "expect": "not_simplified",
+  "basis": "interpretation 43 (D5)"
+ },
+ {
+  "id": "exp-011",
+  "spec": {
+   "type": "expression",
+   "value": "x^2",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "x×x",
+  "expect": "not_simplified",
+  "basis": "interpretation 32"
+ },
+ {
+  "id": "exp-012",
+  "spec": {
+   "type": "expression",
+   "value": "x^2",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "√(x^4)",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 40 (K16)"
+ },
+ {
+  "id": "exp-013",
+  "spec": {
+   "type": "expression",
+   "value": "x+1",
+   "variables": [
+    "x"
+   ],
+   "required_form": "any"
+  },
+  "answer": "(x^2-1)/(x-1)",
+  "expect": "correct",
+  "basis": "interpretation 39"
+ },
+ {
+  "id": "exp-014",
+  "spec": {
+   "type": "expression",
+   "value": "x+1",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "(x^2-1)/(x-1)",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 34 brackets where spec has none"
+ },
+ {
+  "id": "exp-015",
+  "spec": {
+   "type": "expression",
+   "value": "x/2",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "2x/4",
+  "expect": "not_simplified",
+  "basis": "interpretation 33"
+ },
+ {
+  "id": "exp-016",
+  "spec": {
+   "type": "expression",
+   "value": "x/2",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "0.5x",
+  "expect": "correct",
+  "basis": "interpretation 38"
+ },
+ {
+  "id": "exp-017",
+  "spec": {
+   "type": "expression",
+   "value": "x/2",
+   "variables": [
+    "x"
+   ],
+   "mark": "cao"
+  },
+  "answer": "0.5x",
+  "expect": "wrong_form",
+  "basis": "interpretation 38 cao"
+ },
+ {
+  "id": "exp-018",
+  "spec": {
+   "type": "expression",
+   "value": "2x+6",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "2(x+3)",
+  "expect": "not_auto_gradable",
+  "basis": "interpretation 34 (D3, K25)"
+ },
+ {
+  "id": "exp-019",
+  "spec": {
+   "type": "expression",
+   "value": "2(x+3)",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "2x+6",
+  "expect": "correct",
+  "basis": "interpretation 34"
+ },
+ {
+  "id": "exp-020",
+  "spec": {
+   "type": "expression",
+   "value": "x",
+   "variables": [
+    "x"
+   ],
+   "required_form": "any"
+  },
+  "answer": "1/(x-x)",
+  "expect": "not_auto_gradable",
+  "basis": "K15"
+ },
+ {
+  "id": "exp-021",
+  "spec": {
+   "type": "expression",
+   "value": "x",
+   "variables": [
+    "x"
+   ],
+   "required_form": "any"
+  },
+  "answer": "(x+y+z+1)^20",
+  "expect": "too_complex",
+  "basis": "interpretation 41"
+ },
+ {
+  "id": "exp-022",
+  "spec": {
+   "type": "expression",
+   "value": "x",
+   "variables": [
+    "x"
+   ]
+  },
+  "answer": "1/2x",
+  "expect": "ambiguous_input",
+  "basis": "P1-D3"
+ },
+ {
+  "id": "sol-001",
+  "spec": {
+   "type": "solutions",
+   "variable": "x",
+   "solutions": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "x = 3 or x = -2",
+  "expect": "correct",
+  "basis": "interpretation 45"
+ },
+ {
+  "id": "sol-002",
+  "spec": {
+   "type": "solutions",
+   "variable": "x",
+   "solutions": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "3, 3",
+  "expect": "missing_solution",
+  "basis": "interpretation 47 (D3)"
+ },
+ {
+  "id": "sol-003",
+  "spec": {
+   "type": "solutions",
+   "variable": "x",
+   "solutions": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "3, -2, 5",
+  "expect": "extra_solution",
+  "basis": "interpretation 48"
+ },
+ {
+  "id": "sol-004",
+  "spec": {
+   "type": "solutions",
+   "variable": "x",
+   "solutions": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "x^2 = 9",
+  "expect": "wrong_form",
+  "basis": "interpretation 46"
+ },
+ {
+  "id": "sol-005",
+  "spec": {
+   "type": "solutions",
+   "variable": "x",
+   "solutions": [
+    {
+     "type": "numeric",
+     "value": "√2"
+    },
+    {
+     "type": "numeric",
+     "value": "1.414",
+     "accuracy": {
+      "kind": "exact",
+      "digits": null
+     }
+    }
+   ]
+  },
+  "answer": "1.414, 1.41",
+  "expect": "correct",
+  "basis": "maximum matching vs greedy"
+ },
+ {
+  "id": "crd-001",
+  "spec": {
+   "type": "coordinates",
+   "components": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "(-2, 3)",
+  "expect": "wrong_value",
+  "basis": "interpretation 50 order"
+ },
+ {
+  "id": "crd-002",
+  "spec": {
+   "type": "coordinates",
+   "components": [
+    {
+     "type": "numeric",
+     "value": "3"
+    },
+    {
+     "type": "numeric",
+     "value": "-2"
+    }
+   ]
+  },
+  "answer": "3, -2",
+  "expect": "multiple_answers",
+  "basis": "policy 3 (D2)"
+ },
+ {
+  "id": "rat-001",
+  "spec": {
+   "type": "ratio",
+   "parts": [
+    2,
+    3,
+    4
+   ]
+  },
+  "answer": "20:30:40",
+  "expect": "not_simplified",
+  "basis": "interpretation 52"
+ },
+ {
+  "id": "rat-002",
+  "spec": {
+   "type": "ratio",
+   "parts": [
+    2,
+    3,
+    4
+   ]
+  },
+  "answer": "3:2:4",
+  "expect": "wrong_value",
+  "basis": "interpretation 52 order"
+ },
+ {
+  "id": "rat-003",
+  "spec": {
+   "type": "ratio",
+   "parts": [
+    2,
+    3,
+    4
+   ]
+  },
+  "answer": "2:3:4",
+  "expect": "correct",
+  "basis": "R10"
+ }
+]
