@@ -1,135 +1,59 @@
-# 🎓 IGCSE Math Pro — AI-Powered Tutoring Ecosystem
+# IGCSE Math Pro
 
-> An intelligent, local-first tutoring system for IGCSE Mathematics, combining a deterministic grading engine, Retrieval-Augmented Generation (RAG), and a local LLM to deliver structured, pedagogically sound feedback — without sending student data to the cloud.
+A local-first tutoring system for Cambridge IGCSE Mathematics (0580). Its core is a **deterministic answer grader**: it decides whether a student's final answer is correct, says why it is wrong, or **abstains** when it cannot be certain. A local LLM (Ollama) is used only to explain, never to judge correctness.
 
----
+## What is built
 
-## ✨ Features
+| Part | Status | Where |
+|---|---|---|
+| Deterministic grader (27 verdict reasons, 9 answer types) | Built and tested | `src/grading/` |
+| Answer specifications (numeric, angle, bearing, exact, expression, solutions, coordinates, vector, ratio) | Built and tested | `src/models/answers.py` |
+| Sandbox worker (separate process, 256 MiB memory limit, 2 s timeout, no file writes) | Built and tested | `src/grading/worker.py`, `sandbox.py` |
+| RAG chatbot over 13 Cambridge PDFs (Gradio + Ollama + Chroma) | Original prototype | `src/agent/`, `src/rag/` |
+| Tutoring controller (attempt → hints → reveal) | Not yet in this repository | — |
 
-- 🤖 **Local LLM Tutor** — Powered by Llama 3.2 via Ollama; all inference runs on your machine
-- 📚 **RAG-Enhanced Hints** — ChromaDB vector store retrieves relevant past exam questions to ground responses
-- ✅ **Deterministic Answer Grading** — SymPy-based symbolic validation handles implicit multiplication, sign errors, and edge cases with mathematical precision
-- 🔄 **Finite State Machine (FSM) Flow** — Structured tutoring loop: question → attempt → hint → solution, with controlled state transitions
-- 🔒 **Answer Leakage Prevention** — Correct answers are regex-masked and stored in Gradio state objects, never exposed in the UI until appropriate
-- 📊 **Automated Evaluation Suite** — Metrics report for testing the grading engine against known failure cases
+## How the grader works
 
----
+1. **Safe parser** (`parser.py`) — a hand-written tokenizer and precedence parser. Student text is never passed to `eval`, `sympify` or `parse_expr`. Ambiguous notation abstains instead of being guessed (`1/2x`, `x^2y`, `1,5`, `2 1/3`, `√2x`). Limits: 200 characters, 100 tokens, bracket depth 10, 15-digit numbers, exponent literals up to 20.
+2. **Numeric answers** (`numeric.py`) — exact rational arithmetic, no floats. π and square roots use certified enclosures (integer arithmetic), refined at 10⁻⁴⁰, 10⁻⁸⁰ and 10⁻¹⁶⁰; if a decision is still uncertain the grader abstains. Handles s.f./d.p., half-up rounding, ranges, units, three-figure bearings.
+3. **Exact answers** (`exact.py`) — π, surd and simplest-fraction forms checked on the student's own expression tree, then compared as exact canonical forms.
+4. **Algebra** (`expression.py`) — equivalence via `expand`/`cancel`/`simplify` = 0; `WRONG_VALUE` only with an exact counterexample at fixed probe points (or a numeric one plus a failed symbolic check); otherwise abstain. Form checks for simplified, expanded and factorised-over-ℚ answers.
+5. **Structured answers** (`structured.py`) — solution sets (maximum bipartite matching), ordered pairs, vectors, ratios in simplest form.
 
-## 🏗️ Architecture
+Check order is fixed and the first failure wins (spec self-check → parse → structure → unit → supported structure → form → simplest form → value), so e.g. `NOT_SIMPLIFIED` never implies the value was right.
 
+## Usage
+
+```python
+from src.grading.grader import grade, grade_safe
+
+spec = {"type": "expression", "value": "7a-6b", "variables": ["a", "b"]}
+grade_safe(spec, "2a+3b+5a-9b")   # incorrect / not_simplified (runs in the sandbox)
+grade({"type": "ratio", "parts": [2, 3, 4]}, "20:30:40")   # incorrect / not_simplified
 ```
-igcse-math-pro/
-├── src/
-│   ├── agent/
-│   │   └── ui.py               # Gradio UI + FSM controller
-│   ├── rag/
-│   │   └── vector_store.py     # ChromaDB ingestion & retrieval
-│   └── utils/
-│       └── evaluate.py         # Automated grading evaluation suite
-├── data/
-│   └── question_bank/          # Parsed JSON question files
-├── requirements.txt
-└── README.md
-```
 
-**Core pipeline:**
-1. A question is sampled and presented via the Gradio UI
-2. The student submits an answer; the SymPy engine validates it symbolically
-3. If incorrect, the RAG pipeline retrieves similar questions and the LLM generates a targeted hint
-4. The FSM controls state transitions (attempt → hint → worked solution) to prevent premature answer reveal
+Use `grade_safe` for untrusted input; `grade` runs in the current process.
 
----
-
-## 🛠️ Installation & Setup
-
-### Prerequisites
-
-- Python 3.9+
-- [Ollama](https://ollama.com/) installed on your system
-
-### 1. Clone the Repository
+## Tests
 
 ```bash
-git clone https://github.com/your-username/igcse-math-pro.git
-cd igcse-math-pro
+pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest -q
 ```
 
-### 2. Install Dependencies
+The suite has 178 tests: parser ambiguity and limits, 25 hostile inputs, 3,000 fuzzed inputs, certified π/√ enclosures, 93 labelled cases with their marking basis (`tests/grading_cases/cases.json`), property tests, and sandbox tests (timeout, memory limit, file-write block, concurrency). The labelled cases are **developer-written regression tests, not an independent evaluation**.
+
+## Marking rules
+
+Rules come from the 0580 syllabus (2025–2027) and mark-scheme conventions (3 s.f. default, 1 d.p. angles, three-figure bearings, π from the calculator or 3.142, simplest form, oe/cao/awrt), plus seven grading-policy rules listed in `src/models/answers.py` (`POLICY_RULES`). These are our grading decisions, not official Cambridge marking rules.
+
+## Running the chatbot prototype
 
 ```bash
-pip install -r requirements.txt
+ollama pull llama3.2:1b
+python -m src.agent.ui
 ```
 
-> Ensure `sympy`, `gradio`, `langchain_ollama`, `langchain_core`, and `chromadb` are listed in `requirements.txt`.
+## Limitations
 
-### 3. Start the Local LLM
-
-Open a new terminal and pull/run the Llama model:
-
-```bash
-ollama run llama3.2:1b
-```
-
-### 4. Initialize the Vector Database
-
-With your parsed JSON files ready in `data/question_bank/`:
-
-```bash
-python src/rag/vector_store.py
-```
-
-### 5. Launch the Application
-
-```bash
-python src/agent/ui.py
-```
-
-The app will be available at **https://huggingface.co/spaces/wandiya39/IGCSE-Math-Tutor**
-
----
-
-## 📊 Evaluation & Testing
-
-An automated evaluation suite tests the deterministic grading engine against known failure cases, including:
-
-- Implicit multiplication (e.g., `2x` vs `2*x`)
-- Incorrect sign handling
-- Non-mathematical or malformed input
-
-To run the metrics report:
-
-```bash
-python src/utils/evaluate.py
-```
-
----
-
-## 🛡️ Security & Limitations
-
-| Concern | Approach |
-|---|---|
-| Answer leakage | Correct answers are regex-masked and stored in Gradio's state, never rendered in the UI prematurely |
-| LLM instability | The 1B model may produce formatting errors; fallback UI messages catch and handle generation failures gracefully |
-| Data privacy | All LLM inference is local via Ollama — no student data leaves the machine |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to:
-
-- Improve the data extraction pipeline
-- Add new syllabus topics or question types
-- Enhance the grading engine for more edge cases
-
-Please open an issue or submit a pull request. All contributions should include appropriate test cases in `src/utils/evaluate.py`.
-
----
-
-## 📄 License
-
-This project is open for educational use. See `LICENSE` for details.
-
----
-
-*Built with SymPy, ChromaDB, LangChain, Ollama, and Gradio.*
+Final answers only (no method marks); inequalities and text answers are not supported; forms like `(1+√5)/2` abstain; the sandbox needs Linux (`resource` limits). Cambridge past-paper material is used for research only.

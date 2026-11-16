@@ -8,3 +8,5 @@ chromadb
 pymupdf
 langchain-classic
 gradio
+sympy==1.14.0
+pydantic==2.13.5
