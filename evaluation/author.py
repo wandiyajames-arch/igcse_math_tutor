@@ -1,0 +1,136 @@
+"""Author the test set in Excel, then convert it to the harness format.
+
+    python -m evaluation.author template evaluation/data/test/authoring.xlsx
+    (fill in the Items and Responses sheets)
+    python -m evaluation.author build evaluation/data/test/authoring.xlsx evaluation/data/test
+
+``build`` writes items.jsonl and responses.jsonl and lists every problem
+(invalid spec, unknown item, missing examiner-report citation) so nothing
+broken reaches the raters.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.worksheet.datavalidation import DataValidation
+
+from .data import SOURCES, Dataset, Item, Response, validate
+
+ITEM_COLS = ["item_id", "split", "paper", "session", "question_no", "topic", "question",
+             "mark_scheme_answer", "mark_scheme_notes", "spec_json"]
+RESP_COLS = ["response_id", "item_id", "answer", "source", "source_note"]
+TOPICS = ["Number", "Algebra and graphs", "Coordinate geometry", "Geometry", "Mensuration",
+          "Trigonometry", "Transformations and vectors", "Probability", "Statistics"]
+
+SPEC_EXAMPLES = [
+    ("numeric, 3 s.f. default", '{"type":"numeric","value":"25π","unit":"cm²"}'),
+    ("numeric, 1 d.p.", '{"type":"numeric","value":"12.345","accuracy":{"kind":"dp","digits":1}}'),
+    ("numeric, exact", '{"type":"numeric","value":"2/3","accuracy":{"kind":"exact","digits":null}}'),
+    ("numeric, range", '{"type":"numeric","value":"2.4","accept_range":["2.3","2.5"]}'),
+    ("numeric, standard form", '{"type":"numeric","value":"4500","required_form":"standard_form"}'),
+    ("angle (1 d.p.)", '{"type":"angle","value":"36.87"}'),
+    ("bearing", '{"type":"bearing","value":"65"}'),
+    ("exact, in terms of π", '{"type":"exact","value":"100-4π","required_form":"in_terms_of_pi"}'),
+    ("exact, surd", '{"type":"exact","value":"3√2","required_form":"surd"}'),
+    ("exact, fraction", '{"type":"exact","value":"-5/6","required_form":"fraction_simplest"}'),
+    ("expression, simplified", '{"type":"expression","value":"7a-6b","variables":["a","b"]}'),
+    ("expression, expanded", '{"type":"expression","value":"x^2+5x+6","variables":["x"],"required_form":"expanded"}'),
+    ("expression, factorised", '{"type":"expression","value":"(x+2)(x+3)","variables":["x"],"required_form":"factorised_fully"}'),
+    ("solutions", '{"type":"solutions","variable":"x","solutions":[{"type":"numeric","value":"3"},{"type":"numeric","value":"-2"}]}'),
+    ("coordinates", '{"type":"coordinates","components":[{"type":"numeric","value":"3"},{"type":"numeric","value":"-2"}]}'),
+    ("vector", '{"type":"vector","components":[{"type":"numeric","value":"4"},{"type":"numeric","value":"-1"}]}'),
+    ("ratio", '{"type":"ratio","parts":[2,3,4]}'),
+]
+
+
+def _header(ws, cols):
+    ws.append(cols)
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="305496")
+    ws.freeze_panes = "A2"
+
+
+def template(path):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Items"
+    _header(ws, ITEM_COLS)
+    ws.append(["0580-s25-22-q05", "test", "0580/22", "June 2025", "5", "Algebra and graphs",
+               "[Type the question text here]", "[mark-scheme answer]", "[e.g. oe, awrt]",
+               '[spec JSON — copy a pattern from the "Spec examples" sheet]'])
+    for col, w in zip("ABCDEFGHIJ", (18, 8, 10, 12, 10, 22, 60, 22, 18, 70)):
+        ws.column_dimensions[col].width = w
+    dv = DataValidation(type="list", formula1='"dev,test"', allow_blank=True)
+    dv2 = DataValidation(type="list", formula1='"' + ",".join(TOPICS) + '"', allow_blank=True)
+    ws.add_data_validation(dv)
+    ws.add_data_validation(dv2)
+    dv.add("B2:B1000")
+    dv2.add("F2:F1000")
+    rs = wb.create_sheet("Responses")
+    _header(rs, RESP_COLS)
+    rs.append(["0580-s25-22-q05-r1", "0580-s25-22-q05", "[candidate answer exactly as typed]", "correct_form", ""])
+    rs.append(["0580-s25-22-q05-r2", "0580-s25-22-q05", "[typical error]", "examiner_report",
+               "[quote or page of the Principal Examiner Report describing this error]"])
+    for col, w in zip("ABCDE", (22, 18, 30, 18, 70)):
+        rs.column_dimensions[col].width = w
+    dv3 = DataValidation(type="list", formula1='"' + ",".join(SOURCES) + '"', allow_blank=True)
+    rs.add_data_validation(dv3)
+    dv3.add("D2:D5000")
+    ex = wb.create_sheet("Spec examples")
+    _header(ex, ["answer type", "spec_json pattern"])
+    for row in SPEC_EXAMPLES:
+        ex.append(list(row))
+    ex.column_dimensions["A"].width = 28
+    ex.column_dimensions["B"].width = 120
+    wb.save(path)
+    return Path(path)
+
+
+def build(xlsx, folder):
+    wb = load_workbook(xlsx, read_only=True)
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    items, problems = {}, []
+    rows = list(wb["Items"].iter_rows(values_only=True))
+    for n, r in enumerate(rows[1:], 2):
+        d = dict(zip(ITEM_COLS, r))
+        if not d.get("item_id") or str(d["item_id"]).startswith("["):
+            continue
+        try:
+            spec = json.loads(d["spec_json"])
+        except Exception:
+            problems.append(f"Items row {n} ({d['item_id']}): spec_json is not valid JSON")
+            continue
+        it = Item(str(d["item_id"]).strip(), str(d["split"] or "").strip(), str(d["paper"] or ""),
+                  str(d["session"] or ""), str(d["question_no"] or ""), str(d["topic"] or ""),
+                  spec.get("type", ""), str(d["question"] or ""), str(d["mark_scheme_answer"] or ""),
+                  spec, str(d["mark_scheme_notes"] or ""))
+        items[it.item_id] = it
+    responses = []
+    for n, r in enumerate(list(wb["Responses"].iter_rows(values_only=True))[1:], 2):
+        d = dict(zip(RESP_COLS, r))
+        if not d.get("response_id") or str(d.get("answer") or "").startswith("["):
+            continue
+        responses.append(Response(str(d["response_id"]).strip(), str(d["item_id"]).strip(),
+                                  str(d["answer"]), str(d["source"] or "").strip(), str(d["source_note"] or "")))
+    problems += validate(Dataset(items, responses))
+    (folder / "items.jsonl").write_text("\n".join(json.dumps(i.__dict__, ensure_ascii=False) for i in items.values()) + "\n")
+    (folder / "responses.jsonl").write_text("\n".join(json.dumps(r.__dict__, ensure_ascii=False) for r in responses) + "\n")
+    print(f"{len(items)} items, {len(responses)} responses -> {folder}")
+    for p in problems:
+        print("PROBLEM:", p)
+    return problems
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("cmd", choices=["template", "build"])
+    ap.add_argument("xlsx")
+    ap.add_argument("folder", nargs="?")
+    a = ap.parse_args()
+    print(template(a.xlsx)) if a.cmd == "template" else build(a.xlsx, a.folder)
