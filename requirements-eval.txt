@@ -1,0 +1,5 @@
+numpy
+matplotlib
+openpyxl
+math-verify[antlr4_13_2]==0.9.0
+# for CompassVerifier on a GPU: transformers torch accelerate
