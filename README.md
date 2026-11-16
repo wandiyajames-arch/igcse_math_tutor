@@ -41,7 +41,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest -q
 ```
 
-The suite has 178 tests: parser ambiguity and limits, 25 hostile inputs, 3,000 fuzzed inputs, certified π/√ enclosures, 93 labelled cases with their marking basis (`tests/grading_cases/cases.json`), property tests, and sandbox tests (timeout, memory limit, file-write block, concurrency). The labelled cases are **developer-written regression tests, not an independent evaluation**.
+The suite has 178 tests: parser ambiguity and limits, 25 hostile inputs, 3,000 fuzzed inputs, certified π/√ enclosures, 87 labelled cases with their marking basis (`tests/grading_cases/cases.json`), property tests, and sandbox tests (timeout, memory limit, file-write block, concurrency). The labelled cases are **developer-written regression tests, not an independent evaluation**.
 
 ## Marking rules
 
