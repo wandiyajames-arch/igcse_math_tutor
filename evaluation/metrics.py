@@ -19,7 +19,7 @@ from typing import Optional
 
 import numpy as np
 
-from src.grading.verdict import REASON_CATEGORY, Reason
+from .categories import REASON_CATEGORY
 
 from .judges import aggregate
 
@@ -205,10 +205,67 @@ def reason_agreement(ours: SystemArrays, gold_labels: list[str], gold_cats: list
     num = den = 0.0
     for i, (lab, cat) in enumerate(zip(gold_labels, gold_cats)):
         if lab == "incorrect" and ours.decided[i] and not ours.says_correct[i]:
-            try:
-                mine = REASON_CATEGORY[Reason(ours.reason[i])]
-            except (ValueError, KeyError):
+            mine = REASON_CATEGORY.get(ours.reason[i])
+            if mine is None:
                 continue
             den += w[i]
             num += w[i] * (mine == cat)
     return num / den if den else float("nan"), den
+
+
+# ------------------------------------------------------- rare-event bounds
+def _binom_cdf(k: int, n: int, p: float) -> float:
+    """P(X <= k) for X ~ Bin(n, p)."""
+    from math import exp, lgamma, log
+    if p <= 0:
+        return 1.0
+    if p >= 1:
+        return 1.0 if k >= n else 0.0
+    s = 0.0
+    for i in range(0, k + 1):
+        s += exp(lgamma(n + 1) - lgamma(i + 1) - lgamma(n - i + 1) + i * log(p) + (n - i) * log(1 - p))
+    return min(1.0, s)
+
+
+def clopper_pearson(k: int, n: int, level: float = 0.95):
+    """Exact two-sided binomial CI for k events in n trials (no clustering)."""
+    if n == 0:
+        return (float("nan"), float("nan"))
+    a = (1 - level) / 2
+
+    def solve(f):
+        lo, hi = 0.0, 1.0
+        for _ in range(80):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if f(mid) else (lo, mid)
+        return (lo + hi) / 2
+
+    lower = 0.0 if k == 0 else solve(lambda p: 1 - _binom_cdf(k - 1, n, p) < a)
+    upper = 1.0 if k == n else solve(lambda p: _binom_cdf(k, n, p) > a)
+    return lower, upper
+
+
+def rule_of_three(n: int) -> float:
+    """Approximate 95% upper bound on a rate when 0 events were seen in n trials."""
+    return 3.0 / n if n else float("nan")
+
+
+def error_counts(sysa: SystemArrays, gold_correct: np.ndarray) -> dict:
+    """Raw counts behind the false-accept and false-reject rates (whole decided set)."""
+    fa = int((sysa.decided & sysa.says_correct & ~gold_correct).sum())
+    fr = int((sysa.decided & ~sysa.says_correct & gold_correct).sum())
+    n_inc, n_cor = int((~gold_correct).sum()), int(gold_correct.sum())
+    return {"false_accepts": fa, "n_incorrect": n_inc, "false_rejects": fr, "n_correct": n_cor,
+            "fa_exact_ci": clopper_pearson(fa, n_inc), "fr_exact_ci": clopper_pearson(fr, n_cor),
+            "fa_rule_of_three": rule_of_three(n_inc) if fa == 0 else None,
+            "fr_rule_of_three": rule_of_three(n_cor) if fr == 0 else None}
+
+
+def risk_at_coverages(sysa: SystemArrays, gold_correct: np.ndarray, levels=(0.5, 0.7, 0.8, 0.9, 0.95)) -> dict:
+    """Expected selective risk when the system decides a fixed share of all responses."""
+    n = len(gold_correct)
+    out = {}
+    for c in levels:
+        s = summarise(sysa, gold_correct, m_target=c * n)
+        out[f"{c:.2f}"] = s["selective_risk"] if s["reached_target"] else None
+    return out

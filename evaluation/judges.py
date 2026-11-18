@@ -107,9 +107,13 @@ class OllamaBackend:
     max_tokens: int = 16
     timeout: float = 300.0
 
-    def generate(self, prompt: str, temperature: float, seed: int) -> str:
+    def generate(self, prompt: str, temperature: float, seed: int, system: str | None = None,
+                 max_tokens: int | None = None) -> str:
         body = {"model": self.model, "prompt": prompt, "stream": False, "think": False,
-                "options": {"temperature": temperature, "seed": seed, "num_predict": self.max_tokens}}
+                "options": {"temperature": temperature, "seed": seed,
+                            "num_predict": max_tokens or self.max_tokens}}
+        if system:
+            body["system"] = system
         req = urllib.request.Request(f"{self.host}/api/generate", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=self.timeout) as r:
@@ -130,14 +134,16 @@ class TransformersBackend:
             self._tok = AutoTokenizer.from_pretrained(self.model)
             self._lm = AutoModelForCausalLM.from_pretrained(self.model, torch_dtype="auto", device_map="auto")
 
-    def generate(self, prompt: str, temperature: float, seed: int) -> str:
+    def generate(self, prompt: str, temperature: float, seed: int, system: str | None = None,
+                 max_tokens: int | None = None) -> str:
         import torch
         self._load()
-        text = self._tok.apply_chat_template([{"role": "user", "content": prompt}], tokenize=False,
-                                             add_generation_prompt=True, enable_thinking=False)
+        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        text = self._tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True,
+                                             enable_thinking=False)
         ids = self._tok([text], return_tensors="pt").to(self._lm.device)
         torch.manual_seed(seed)
-        out = self._lm.generate(**ids, max_new_tokens=self.max_tokens, do_sample=temperature > 0,
+        out = self._lm.generate(**ids, max_new_tokens=max_tokens or self.max_tokens, do_sample=temperature > 0,
                                 temperature=temperature if temperature > 0 else None)
         return self._tok.decode(out[0][ids.input_ids.shape[1]:], skip_special_tokens=True)
 
@@ -148,9 +154,16 @@ class MockBackend:
     model: str = "mock"
     accuracy: float = 0.8
 
-    def generate(self, prompt: str, temperature: float, seed: int) -> str:
+    def generate(self, prompt: str, temperature: float, seed: int, system: str | None = None,
+                 max_tokens: int | None = None) -> str:
         import hashlib
+        import re as _re
         h = int(hashlib.sha256(f"{prompt}|{seed}".encode()).hexdigest(), 16)
+        m = _re.search(r"Correct final answer \(for your reference only\): (.+)", prompt)
+        if m:  # mock tutor: a naive tutor that sometimes gives the answer away
+            return f"Nearly there! The answer is {m.group(1).strip()}." if h % 2 else "Start by writing down what you know."
+        if "Student's message" in prompt:
+            return "Think about which formula links the quantities in the question."
         truth = "CORRECT" if "[[gold=correct]]" in prompt else "INCORRECT"
         other = "INCORRECT" if truth == "CORRECT" else "CORRECT"
         return truth if (h % 1000) / 1000 < self.accuracy else other

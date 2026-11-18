@@ -30,32 +30,20 @@ def _done(path: Path) -> set:
 
 # ----------------------------------------------------------------- ours
 def run_ours(ds, out: Path, timeout: float = 2.0):
-    from src.grading.grader import grade_safe
-    from src.grading.sandbox import SandboxClient
-    client = SandboxClient()
+    from .grader_adapter import GraderHandle, grader_fingerprint
     done = _done(out)
-    with out.open("a") as f:
+    with GraderHandle(timeout) as g, out.open("a") as f:
         for r in ds.responses:
             if r.response_id in done:
                 continue
             it = ds.item_of(r)
             t0 = time.perf_counter()
-            v = grade_safe(it.spec, r.answer, client=client, timeout=timeout)
+            status, reason = g.grade(it.spec, r.answer)
             ms = (time.perf_counter() - t0) * 1000
-            f.write(json.dumps({"response_id": r.response_id, "decision": v.status.value,
-                                "reason": v.reason.value, "latency_ms": round(ms, 3)}) + "\n")
-    peak = _peak_rss_mb(client)
-    client.close()
-    return {"worker_peak_rss_mb": peak, "cold_start": client.ready_info}
-
-
-def _peak_rss_mb(client):
-    try:
-        for line in Path(f"/proc/{client._proc.pid}/status").read_text().splitlines():
-            if line.startswith("VmHWM"):
-                return round(int(line.split()[1]) / 1024, 1)
-    except Exception:
-        return None
+            f.write(json.dumps({"response_id": r.response_id, "decision": status,
+                                "reason": reason, "latency_ms": round(ms, 3)}) + "\n")
+        meta = {"worker_peak_rss_mb": g.peak_rss_mb(), **g.info(), "grader_fingerprint": grader_fingerprint()}
+    return meta
 
 
 # ---------------------------------------------------------- Math-Verify
@@ -98,7 +86,10 @@ def run_judge(ds, out: Path, backend_spec: str, kind: str = "examiner", k: int =
     from .judges import build_prompt, make_backend, sample
     backend = make_backend(backend_spec)
     done = _done(out)
-    n = 0
+    todo = sum(r.response_id not in done for r in ds.responses)
+    if limit is not None:
+        todo = min(todo, limit)
+    n, t_start = 0, time.perf_counter()
     with out.open("a") as f:
         for r in ds.responses:
             if r.response_id in done:
@@ -118,6 +109,10 @@ def run_judge(ds, out: Path, backend_spec: str, kind: str = "examiner", k: int =
             f.write(json.dumps(rec) + "\n")
             f.flush()
             n += 1
+            if n % 10 == 0 or n == todo:
+                per = (time.perf_counter() - t_start) / n
+                print(f"  {n}/{todo} responses, {per:.1f} s each, about {per * (todo - n) / 60:.0f} min left",
+                      flush=True)
     return {"backend": backend_spec, "kind": kind, "k": k, "temperature": temperature}
 
 
