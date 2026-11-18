@@ -194,7 +194,7 @@ body { background-color: #f8fafc; }
 # 4. BUILD THE AESTHETIC DASHBOARD
 # ---------------------------------------------------------
 with gr.Blocks(title="IGCSE Math Pro", theme=custom_theme, css=custom_css) as demo:
-    gr.HTML("<div class='hero-text'><h1 class='hero-title'>📐 IGCSE Math Pro</h1><p class='hero-subtitle'>Your 100% offline, private Cambridge AI engine.</p></div>")
+    gr.HTML("<div class='hero-text'><h1 class='hero-title'>📐 IGCSE Math Pro</h1><p class='hero-subtitle'>An AI tutor for IGCSE Mathematics (0580), running on an open-source model. Not affiliated with Cambridge.</p></div>")
     
     with gr.Tabs():
         with gr.TabItem("💬 AI Tutor"):
