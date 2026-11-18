@@ -6,6 +6,8 @@ Files (one folder per split, e.g. ``evaluation/data/test/``):
 * ``responses.jsonl``  one candidate answer per line (see ``Response``)
 * ``labels_<rater>.csv`` one file per rater: response_id, label, category, comment
 * ``gold.csv``         adjudicated labels (written by ``adjudicate``)
+* ``excluded.csv``     answer-line parts that cannot be specified for the grader, with a reason
+                       (graphs, constructions, ...). Used for the second coverage figure.
 
 Gold labels: correct | incorrect | undecidable.
 Reason categories (incorrect only): wrong_value, accuracy, form,
@@ -23,6 +25,8 @@ from typing import Optional
 LABELS = ("correct", "incorrect", "undecidable")
 CATEGORIES = ("wrong_value", "accuracy", "form", "incomplete_extra", "units_notation", "other")
 SOURCES = ("correct_form", "examiner_report", "real_student")
+EXCLUSION_REASONS = ("graph_or_diagram", "construction", "inequality_or_region", "text_explanation",
+                     "table_or_multi_box", "other")
 
 
 @dataclass
@@ -54,6 +58,7 @@ class Dataset:
     items: dict[str, Item]
     responses: list[Response]
     gold: dict[str, dict] = field(default_factory=dict)  # response_id -> {label, category}
+    excluded: list[dict] = field(default_factory=list)  # answer-line parts outside the grader's scope
 
     def item_of(self, r: Response) -> Item:
         return self.items[r.item_id]
@@ -69,11 +74,11 @@ def _read_jsonl(p: Path) -> list[dict]:
 
 def validate(ds: Dataset) -> list[str]:
     """Return a list of problems (empty = OK)."""
-    from src.models.answers import parse_answer_spec
+    from .grader_adapter import validate_spec
     errs = []
     for it in ds.items.values():
         try:
-            parse_answer_spec(it.spec)
+            validate_spec(it.spec)
         except Exception as e:
             errs.append(f"{it.item_id}: invalid spec ({type(e).__name__}: {str(e)[:120]})")
         if it.split not in ("dev", "test"):
@@ -89,6 +94,11 @@ def validate(ds: Dataset) -> list[str]:
             errs.append(f"{r.response_id}: source must be one of {SOURCES}")
         if r.source == "examiner_report" and not r.source_note:
             errs.append(f"{r.response_id}: examiner_report responses must cite the report (source_note)")
+    for e in ds.excluded:
+        if e.get("reason") not in EXCLUSION_REASONS:
+            errs.append(f"excluded part {e.get('part_id')}: reason must be one of {EXCLUSION_REASONS}")
+        if e.get("part_id") in ds.items:
+            errs.append(f"excluded part {e.get('part_id')} is also an item")
     for rid, g in ds.gold.items():
         if g["label"] not in LABELS:
             errs.append(f"{rid}: bad gold label {g['label']!r}")
@@ -105,7 +115,11 @@ def load(folder) -> Dataset:
     if (folder / "gold.csv").exists():
         for row in csv.DictReader((folder / "gold.csv").open(encoding="utf-8")):
             gold[row["response_id"]] = {"label": row["label"].strip(), "category": (row.get("category") or "").strip()}
-    return Dataset(items, responses, gold)
+    excluded = []
+    if (folder / "excluded.csv").exists():
+        excluded = [{k: (v or "").strip() for k, v in row.items()}
+                    for row in csv.DictReader((folder / "excluded.csv").open(encoding="utf-8-sig"))]
+    return Dataset(items, responses, gold, excluded)
 
 
 # ------------------------------------------------------------- raters
@@ -129,6 +143,20 @@ def cohen_kappa(a: list[str], b: list[str]) -> float:
     return 1.0 if pe == 1 else (po - pe) / (1 - pe)
 
 
+def gwet_ac1(a: list[str], b: list[str]) -> float:
+    """Gwet's AC1: like kappa but stable when one label is much more common (the kappa paradox)."""
+    assert len(a) == len(b) and a
+    n = len(a)
+    cats = sorted(set(a) | set(b))
+    q = len(cats)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    if q < 2:
+        return 1.0
+    pi = {k: (a.count(k) + b.count(k)) / (2 * n) for k in cats}
+    pe = sum(p * (1 - p) for p in pi.values()) / (q - 1)
+    return 1.0 if pe == 1 else (po - pe) / (1 - pe)
+
+
 def agreement(r1: dict, r2: dict) -> dict:
     ids = sorted(set(r1) & set(r2))
     lab1 = [r1[i]["label"] for i in ids]
@@ -136,12 +164,15 @@ def agreement(r1: dict, r2: dict) -> dict:
     both_inc = [i for i in ids if r1[i]["label"] == r2[i]["label"] == "incorrect"]
     out = {"n": len(ids), "label_agreement": sum(x == y for x, y in zip(lab1, lab2)) / max(len(ids), 1),
            "label_kappa": cohen_kappa(lab1, lab2) if ids else None,
+           "label_ac1": gwet_ac1(lab1, lab2) if ids else None,
+           "label_prevalence": {k: v / max(len(ids), 1) for k, v in Counter(lab1 + lab2).items()} if ids else {},
            "n_category": len(both_inc)}
     if both_inc:
         c1 = [r1[i]["category"] for i in both_inc]
         c2 = [r2[i]["category"] for i in both_inc]
         out["category_agreement"] = sum(x == y for x, y in zip(c1, c2)) / len(both_inc)
         out["category_kappa"] = cohen_kappa(c1, c2)
+        out["category_ac1"] = gwet_ac1(c1, c2)
     return out
 
 

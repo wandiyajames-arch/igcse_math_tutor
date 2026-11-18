@@ -16,8 +16,9 @@ from pathlib import Path
 import numpy as np
 
 from .data import agreement, load, read_labels
-from .metrics import (_load_run, arrays_from_run, aurc, cascade, ci, cluster_bootstrap,
-                      paired_test, reason_agreement, risk_coverage_curve, summarise)
+from .grader_adapter import stratum
+from .metrics import (_load_run, arrays_from_run, aurc, cascade, ci, cluster_bootstrap, error_counts,
+                      paired_test, reason_agreement, risk_at_coverages, risk_coverage_curve, summarise)
 
 NICE = {"ours": "Ours (deterministic)", "math_verify": "Math-Verify", "qwen3_4b": "Qwen3-4B judge",
         "qwen25_7b": "Qwen2.5-7B judge", "compass_3b": "CompassVerifier-3B", "compass_7b": "CompassVerifier-7B"}
@@ -67,7 +68,9 @@ def build(folder, B: int = 10000, headline_judge: str | None = None, seed: int =
         matched = summarise(s, gold_correct, m_target=m_star)
         res["systems"][name] = {"label": nice(name), "max": full, "matched": matched,
                                 "aurc_to_our_coverage": aurc(s, gold_correct, up_to=c_star),
-                                "aurc_full": aurc(s, gold_correct)}
+                                "aurc_full": aurc(s, gold_correct),
+                                "counts": error_counts(s, gold_correct),
+                                "risk_at_coverage": risk_at_coverages(s, gold_correct)}
         if name != "ours":
             res["systems"][name]["mcnemar_vs_ours"] = paired_test(ours, s, gold_correct, int(m_star))
 
@@ -100,15 +103,48 @@ def build(folder, B: int = 10000, headline_judge: str | None = None, seed: int =
     res["reason_agreement"] = {"value": val, "n": n_ra, "ci": ci(ra)}
 
     # breakdowns
-    res["by_answer_type"], res["by_source"] = {}, {}
-    for key, getter in (("by_answer_type", lambda r: ds.item_of(r).answer_type), ("by_source", lambda r: r.source)):
+    res["by_stratum"], res["by_answer_type"], res["by_source"], res["by_topic"] = {}, {}, {}, {}
+    for key, getter in (("by_stratum", lambda r: stratum(ds.item_of(r).spec)),
+                        ("by_answer_type", lambda r: ds.item_of(r).answer_type),
+                        ("by_source", lambda r: r.source),
+                        ("by_topic", lambda r: ds.item_of(r).topic or "?")):
         groups = sorted({getter(r) for r in resp})
         for g in groups:
             mask = np.array([getter(r) == g for r in resp], float)
             res[key][g] = {"n": int(mask.sum())}
             for name in order:
                 s = summarise(systems[name], gold_correct, mask)
-                res[key][g][name] = {"coverage": s["coverage"], "selective_risk": s["selective_risk"]}
+                res[key][g][name] = {"coverage": s["coverage"], "selective_risk": s["selective_risk"],
+                                     "false_accept_rate": s["false_accept_rate"],
+                                     "false_reject_rate": s["false_reject_rate"]}
+
+    # scope: two coverage denominators
+    n_parts_spec = len({it_id for it_id, it in ds.items.items()})
+    n_parts_excl = len(ds.excluded)
+    share = n_parts_spec / (n_parts_spec + n_parts_excl) if n_parts_spec + n_parts_excl else float("nan")
+    res["scope"] = {"specifiable_parts": n_parts_spec, "excluded_parts": n_parts_excl,
+                    "specifiable_share": share,
+                    "excluded_by_reason": dict(Counter(e.get("reason", "") for e in ds.excluded)),
+                    "coverage_over_specifiable": c_star,
+                    "coverage_over_all_answer_lines": c_star * share if share == share else None}
+
+    # error analysis: every wrong decision of ours, for the paper's qualitative section
+    res["our_errors"] = []
+    for i, r in enumerate(resp):
+        if ours.decided[i] and ours.says_correct[i] != gold_correct[i]:
+            it = ds.item_of(r)
+            res["our_errors"].append({"response_id": r.response_id, "item_id": it.item_id, "answer": r.answer,
+                                      "mark_scheme_answer": it.mark_scheme_answer, "gold": gold_labels[i],
+                                      "ours": "correct" if ours.says_correct[i] else "incorrect",
+                                      "reason": ours.reason[i], "kind": "false_accept" if ours.says_correct[i]
+                                      else "false_reject", "source": r.source})
+
+    # freeze check
+    try:
+        from .freeze import verify
+        res["freeze"] = verify(folder, quiet=True)
+    except Exception as e:
+        res["freeze"] = {"ok": None, "problems": [f"not checked: {type(e).__name__}"]}
 
     # abstentions
     abst = ~ours.decided
@@ -138,6 +174,8 @@ def build(folder, B: int = 10000, headline_judge: str | None = None, seed: int =
         res["rater_agreement"] = agreement(read_labels(rater_files[0]), read_labels(rater_files[1]))
 
     res["headline_cascade"] = f"cascade+{headline_judge}" if headline_judge else None
+    lk = folder / "results" / "leakage.json"
+    res["leakage"] = json.loads(lk.read_text()) if lk.exists() else None
     curves = {name: risk_coverage_curve(systems[name], gold_correct) for name in order}
     return res, curves, order
 
@@ -152,8 +190,15 @@ def _pct_ci(x, c):
 
 
 def write_markdown(res, order, out: Path):
+    fz = res.get("freeze", {})
+    sc = res["scope"]
     L = [f"# Results ({res['n_responses']} responses, {res['n_items']} question parts; "
          f"{res['n_undecidable']} undecidable excluded)", "",
+         "Freeze check: " + ("**passed** (data, specs, grader and prompts match FREEZE.json)" if fz.get("ok")
+                             else "**NOT PASSED** – " + "; ".join(fz.get("problems", [])[:3])), "",
+         f"Scope: {sc['specifiable_parts']} of {sc['specifiable_parts'] + sc['excluded_parts']} answer-line parts "
+         f"could be specified ({_pct(sc['specifiable_share'])}%). Our coverage is {_pct(sc['coverage_over_specifiable'])}% "
+         f"of responses on specifiable parts and about {_pct(sc['coverage_over_all_answer_lines'])}% of all answer lines.", "",
          f"Our grader's coverage: **{_pct(res['our_coverage'])}%**. Brackets: 95% bootstrap CIs "
          f"clustered by question part (B = {res['bootstrap_B']}).", "",
          "## Table 1 – Matched coverage (every system decides as many responses as ours)", "",
@@ -171,7 +216,25 @@ def write_markdown(res, order, out: Path):
         L.append(f"| {head}{s['label']}{head}{flag} | {_pct(m['coverage'])} | {_pct_ci(m['selective_risk'], c['m_risk'])} | "
                  f"{_pct_ci(m['false_accept_rate'], c['m_fa'])} | {_pct_ci(m['false_reject_rate'], c['m_fr'])} | "
                  f"{diff_txt} | {p_txt} |")
-    L += ["", "† cannot reach our coverage; shown at its maximum coverage.", "",
+    L += ["", "† cannot reach our coverage; shown at its maximum coverage. Primary test: the paired, clustered "
+          "bootstrap CI of the risk difference; McNemar (which treats responses as independent) is secondary.", "",
+          "## Error counts with exact 95% CIs (Clopper–Pearson, not clustered)", "",
+          "| System | False accepts | FA exact CI % | False rejects | FR exact CI % |", "|---|---|---|---|---|"]
+    for n in order:
+        k = res["systems"][n]["counts"]
+        fa_ci = f"{_pct(k['fa_exact_ci'][0])}–{_pct(k['fa_exact_ci'][1])}"
+        fr_ci = f"{_pct(k['fr_exact_ci'][0])}–{_pct(k['fr_exact_ci'][1])}"
+        if k["fa_rule_of_three"] is not None:
+            fa_ci += f" (rule of three ≤ {_pct(k['fa_rule_of_three'])})"
+        L.append(f"| {res['systems'][n]['label']} | {k['false_accepts']}/{k['n_incorrect']} | {fa_ci} | "
+                 f"{k['false_rejects']}/{k['n_correct']} | {fr_ci} |")
+    levels = list(res["systems"][order[0]]["risk_at_coverage"])
+    L += ["", "## Selective risk % at fixed coverage", "",
+          "| System | " + " | ".join(f"{float(c) * 100:.0f}%" for c in levels) + " |", "|---|" + "---|" * len(levels)]
+    for n in order:
+        rc = res["systems"][n]["risk_at_coverage"]
+        L.append(f"| {res['systems'][n]['label']} | " + " | ".join(_pct(rc[c]) for c in levels) + " |")
+    L += ["",
           "## Table 2 – Each system at its own maximum coverage", "",
           "| System | Coverage % | Selective risk % | False accept % | False reject % | AURC to our coverage % |",
           "|---|---|---|---|---|---|"]
@@ -185,9 +248,12 @@ def write_markdown(res, order, out: Path):
     L += ["", f"## RQ2 – Reason agreement: {_pct_ci(ra['value'], ra['ci'])}% (n = {ra['n']:.0f})", ""]
     if "rater_agreement" in res:
         a = res["rater_agreement"]
-        L += [f"Rater agreement: label κ = {a['label_kappa']:.2f} (n = {a['n']}); "
-              f"category κ = {a.get('category_kappa', float('nan')):.2f} (n = {a['n_category']}).", ""]
-    for key, title in (("by_answer_type", "By answer type"), ("by_source", "By response source")):
+        L += [f"Rater agreement: raw {_pct(a['label_agreement'])}%, label κ = {a['label_kappa']:.2f}, "
+              f"Gwet's AC1 = {a['label_ac1']:.2f} (n = {a['n']}); category κ = "
+              f"{a.get('category_kappa', float('nan')):.2f}, AC1 = {a.get('category_ac1', float('nan')):.2f} "
+              f"(n = {a['n_category']}).", ""]
+    for key, title in (("by_stratum", "Value-only vs form-sensitive items"), ("by_answer_type", "By answer type"),
+                       ("by_source", "By response source"), ("by_topic", "By syllabus topic")):
         L += [f"## {title} (coverage % / selective risk %)", "", "| Group | n | " + " | ".join(res["systems"][n]["label"] for n in order) + " |",
               "|---|---|" + "---|" * len(order)]
         for g, d in res[key].items():
@@ -203,6 +269,18 @@ def write_markdown(res, order, out: Path):
     for n, d in res["efficiency"].items():
         f = lambda x: "–" if x is None else f"{x:.2f}" if x < 100 else f"{x:.0f}"
         L.append(f"| {nice(n)} | {f(d['median_ms'])} | {f(d['p95_ms'])} | {f(d['peak_mem_mb'])} |")
+    L += ["", f"## Our wrong decisions ({len(res['our_errors'])}) – see our_errors.csv", ""]
+    lk = res.get("leakage")
+    if lk:
+        L += ["## RQ4 – Answer leakage before the reveal (share of tutor replies that state the answer)", "",
+              "| Condition | Leaks | Rate % [95% Wilson CI] |", "|---|---|---|"]
+        for cond, d in lk["conditions"].items():
+            a = d["all"]
+            L.append(f"| {cond} | {a['leaks']}/{a['n']} | {_pct_ci(a['rate'], a['ci95'])} |")
+        if "auto_vs_manual" in lk:
+            m = lk["auto_vs_manual"]
+            L.append(f"\nAutomatic vs hand check: agreement {_pct(m['agreement'])}% on {m['n']} replies "
+                     f"({m['auto_missed']} missed, {m['auto_false_alarm']} false alarms).")
     out.write_text("\n".join(L) + "\n")
 
 
@@ -264,6 +342,12 @@ def main(argv=None):
     write_markdown(res, order, out / "results.md")
     write_latex(res, order, out / "tables.tex")
     write_figure(curves, res, order, out / "risk_coverage.png")
+    import csv
+    with (out / "our_errors.csv").open("w", newline="", encoding="utf-8") as f:
+        cols = ["response_id", "item_id", "answer", "mark_scheme_answer", "gold", "ours", "reason", "kind", "source"]
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        w.writerows(res["our_errors"])
     print(f"wrote {out}")
 
 

@@ -18,33 +18,16 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from .data import SOURCES, Dataset, Item, Response, validate
+from .data import EXCLUSION_REASONS, SOURCES, Dataset, Item, Response, validate
+from .grader_adapter import GraderHandle, spec_examples
 
 ITEM_COLS = ["item_id", "split", "paper", "session", "question_no", "topic", "question",
              "mark_scheme_answer", "mark_scheme_notes", "spec_json"]
 RESP_COLS = ["response_id", "item_id", "answer", "source", "source_note"]
+EXCL_COLS = ["part_id", "split", "paper", "question_no", "reason", "note"]
 TOPICS = ["Number", "Algebra and graphs", "Coordinate geometry", "Geometry", "Mensuration",
           "Trigonometry", "Transformations and vectors", "Probability", "Statistics"]
 
-SPEC_EXAMPLES = [
-    ("numeric, 3 s.f. default", '{"type":"numeric","value":"25π","unit":"cm²"}'),
-    ("numeric, 1 d.p.", '{"type":"numeric","value":"12.345","accuracy":{"kind":"dp","digits":1}}'),
-    ("numeric, exact", '{"type":"numeric","value":"2/3","accuracy":{"kind":"exact","digits":null}}'),
-    ("numeric, range", '{"type":"numeric","value":"2.4","accept_range":["2.3","2.5"]}'),
-    ("numeric, standard form", '{"type":"numeric","value":"4500","required_form":"standard_form"}'),
-    ("angle (1 d.p.)", '{"type":"angle","value":"36.87"}'),
-    ("bearing", '{"type":"bearing","value":"65"}'),
-    ("exact, in terms of π", '{"type":"exact","value":"100-4π","required_form":"in_terms_of_pi"}'),
-    ("exact, surd", '{"type":"exact","value":"3√2","required_form":"surd"}'),
-    ("exact, fraction", '{"type":"exact","value":"-5/6","required_form":"fraction_simplest"}'),
-    ("expression, simplified", '{"type":"expression","value":"7a-6b","variables":["a","b"]}'),
-    ("expression, expanded", '{"type":"expression","value":"x^2+5x+6","variables":["x"],"required_form":"expanded"}'),
-    ("expression, factorised", '{"type":"expression","value":"(x+2)(x+3)","variables":["x"],"required_form":"factorised_fully"}'),
-    ("solutions", '{"type":"solutions","variable":"x","solutions":[{"type":"numeric","value":"3"},{"type":"numeric","value":"-2"}]}'),
-    ("coordinates", '{"type":"coordinates","components":[{"type":"numeric","value":"3"},{"type":"numeric","value":"-2"}]}'),
-    ("vector", '{"type":"vector","components":[{"type":"numeric","value":"4"},{"type":"numeric","value":"-1"}]}'),
-    ("ratio", '{"type":"ratio","parts":[2,3,4]}'),
-]
 
 
 def _header(ws, cols):
@@ -83,10 +66,18 @@ def template(path):
     dv3.add("D2:D5000")
     ex = wb.create_sheet("Spec examples")
     _header(ex, ["answer type", "spec_json pattern"])
-    for row in SPEC_EXAMPLES:
+    for row in spec_examples():
         ex.append(list(row))
     ex.column_dimensions["A"].width = 28
     ex.column_dimensions["B"].width = 120
+    xs = wb.create_sheet("Excluded")
+    _header(xs, EXCL_COLS)
+    xs.append(["0580-s25-42-q03c", "test", "0580/42", "3(c)", "graph_or_diagram", "draw the graph"])
+    for col, w in zip("ABCDEF", (22, 8, 10, 10, 22, 50)):
+        xs.column_dimensions[col].width = w
+    dv4 = DataValidation(type="list", formula1='"' + ",".join(EXCLUSION_REASONS) + '"', allow_blank=True)
+    xs.add_data_validation(dv4)
+    dv4.add("E2:E2000")
     wb.save(path)
     return Path(path)
 
@@ -99,7 +90,7 @@ def build(xlsx, folder):
     rows = list(wb["Items"].iter_rows(values_only=True))
     for n, r in enumerate(rows[1:], 2):
         d = dict(zip(ITEM_COLS, r))
-        if not d.get("item_id") or str(d["item_id"]).startswith("["):
+        if not d.get("item_id") or str(d["item_id"]).startswith("[") or str(d.get("question") or "").startswith("["):
             continue
         try:
             spec = json.loads(d["spec_json"])
@@ -118,13 +109,46 @@ def build(xlsx, folder):
             continue
         responses.append(Response(str(d["response_id"]).strip(), str(d["item_id"]).strip(),
                                   str(d["answer"]), str(d["source"] or "").strip(), str(d["source_note"] or "")))
-    problems += validate(Dataset(items, responses))
+    excluded = []
+    if "Excluded" in wb.sheetnames:
+        for r in list(wb["Excluded"].iter_rows(values_only=True))[1:]:
+            d = {k: ("" if v is None else str(v).strip()) for k, v in zip(EXCL_COLS, r)}
+            if d["part_id"] and d["note"] != "draw the graph":
+                excluded.append(d)
+    problems += validate(Dataset(items, responses, excluded=excluded))
+    problems += self_check(items)
+    import csv
+    with (folder / "excluded.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=EXCL_COLS)
+        w.writeheader()
+        w.writerows(excluded)
     (folder / "items.jsonl").write_text("\n".join(json.dumps(i.__dict__, ensure_ascii=False) for i in items.values()) + "\n")
     (folder / "responses.jsonl").write_text("\n".join(json.dumps(r.__dict__, ensure_ascii=False) for r in responses) + "\n")
-    print(f"{len(items)} items, {len(responses)} responses -> {folder}")
+    print(f"{len(items)} items, {len(responses)} responses, {len(excluded)} excluded parts -> {folder}")
     for p in problems:
         print("PROBLEM:", p)
     return problems
+
+
+def self_check(items: dict) -> list[str]:
+    """Spec check from the mark scheme only: the grader must accept the mark-scheme answer.
+
+    Only the mark-scheme answer is graded here, never a candidate answer, so the
+    spec author learns nothing about how the grader treats the test responses.
+    A failure usually means the spec or the mark-scheme answer string is wrong.
+    """
+    out = []
+    valid = {i: it for i, it in items.items() if it.spec.get("type")}
+    if not valid:
+        return out
+    with GraderHandle() as g:
+        for iid, it in valid.items():
+            status, reason = g.grade(it.spec, it.mark_scheme_answer)
+            if status != "correct":
+                out.append(f"{iid}: the grader does not accept the mark-scheme answer "
+                           f"{it.mark_scheme_answer!r} ({status}/{reason}) – check the spec or write the "
+                           f"answer as a candidate would type it")
+    return out
 
 
 if __name__ == "__main__":
