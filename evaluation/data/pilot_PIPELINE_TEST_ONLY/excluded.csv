@@ -1,0 +1,22 @@
+part_id,split,paper,question_no,reason,note
+pilot-excluded-0,dev,pilot,0,graph_or_diagram,pipeline test
+pilot-excluded-1,dev,pilot,1,graph_or_diagram,pipeline test
+pilot-excluded-2,dev,pilot,2,graph_or_diagram,pipeline test
+pilot-excluded-3,dev,pilot,3,graph_or_diagram,pipeline test
+pilot-excluded-4,dev,pilot,4,graph_or_diagram,pipeline test
+pilot-excluded-5,dev,pilot,5,graph_or_diagram,pipeline test
+pilot-excluded-6,dev,pilot,6,graph_or_diagram,pipeline test
+pilot-excluded-7,dev,pilot,7,graph_or_diagram,pipeline test
+pilot-excluded-8,dev,pilot,8,graph_or_diagram,pipeline test
+pilot-excluded-9,dev,pilot,9,graph_or_diagram,pipeline test
+pilot-excluded-10,dev,pilot,10,graph_or_diagram,pipeline test
+pilot-excluded-11,dev,pilot,11,graph_or_diagram,pipeline test
+pilot-excluded-12,dev,pilot,12,graph_or_diagram,pipeline test
+pilot-excluded-13,dev,pilot,13,graph_or_diagram,pipeline test
+pilot-excluded-14,dev,pilot,14,graph_or_diagram,pipeline test
+pilot-excluded-15,dev,pilot,15,graph_or_diagram,pipeline test
+pilot-excluded-16,dev,pilot,16,graph_or_diagram,pipeline test
+pilot-excluded-17,dev,pilot,17,graph_or_diagram,pipeline test
+pilot-excluded-18,dev,pilot,18,graph_or_diagram,pipeline test
+pilot-excluded-19,dev,pilot,19,graph_or_diagram,pipeline test
+pilot-excluded-20,dev,pilot,20,graph_or_diagram,pipeline test
