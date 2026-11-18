@@ -1,0 +1,54 @@
+# Keeps the Hugging Face Space in step with GitHub.
+# Runs on every push to main that touches the app, or by hand from the Actions tab.
+# Needs one repository secret: HF_TOKEN (a Hugging Face token with write access).
+#
+# Safe by design:
+#  * only the app files are uploaded (src/, Dockerfile, requirements.txt);
+#  * nothing on the Space is deleted, so its README (Space settings) and data/ stay as they are;
+#  * evaluation/, tests/ and docs never go to the Space and never trigger a rebuild.
+name: Sync to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "Dockerfile"
+      - "requirements.txt"
+  workflow_dispatch:
+
+concurrency:
+  group: hf-space-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "huggingface_hub>=0.25"
+
+      - name: Upload the app to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then echo "HF_TOKEN secret is missing (Settings -> Secrets and variables -> Actions)"; exit 1; fi
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          info = api.upload_folder(
+              repo_id="wandiya39/IGCSE-Math-Tutor",
+              repo_type="space",
+              folder_path=".",
+              allow_patterns=["src/**", "Dockerfile", "requirements.txt"],
+              ignore_patterns=["**/__pycache__/**", "**/*.pyc"],
+              commit_message=f"Sync from GitHub {os.environ['GITHUB_SHA'][:7]}",
+          )
+          print("Uploaded:", info)
+          PY
