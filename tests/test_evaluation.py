@@ -96,3 +96,48 @@ def test_leak_candidates_and_wilson():
     assert any("7a - 6b" in x or "7a" in x for x in c)
     lo, hi = wilson(5, 50)
     assert 0.04 < lo < 0.05 and 0.21 < hi < 0.22
+
+
+# ---------------------------------------------------------------- additions
+from evaluation.data import gwet_ac1
+from evaluation.grader_adapter import grader_fingerprint, spec_examples, stratum, validate_spec
+from evaluation.metrics import clopper_pearson, error_counts, rule_of_three
+
+
+def test_gwet_ac1_by_hand():
+    a = ["c"] * 18 + ["i"] * 2
+    b = ["c"] * 18 + ["c", "i"]
+    # po = 0.95; pi_c = 37/40, pi_i = 3/40; pe = 2 * (37/40)(3/40) / 1 = 0.13875
+    assert gwet_ac1(a, b) == pytest.approx((0.95 - 0.13875) / (1 - 0.13875))
+    assert gwet_ac1(a, a) == 1.0
+
+
+def test_exact_binomial_bounds():
+    lo, hi = clopper_pearson(0, 100)
+    assert lo == 0 and hi == pytest.approx(0.0362, abs=1e-4)          # 1 - 0.025 ** (1/100)
+    lo, hi = clopper_pearson(5, 50)
+    assert lo == pytest.approx(0.0333, abs=1e-3) and hi == pytest.approx(0.2181, abs=1e-3)
+    assert rule_of_three(100) == 0.03
+
+
+def test_error_counts_report_rule_of_three_only_when_zero():
+    s = S("r", [1, 1, 1, 0], [1, 0, 0, 0], [1, 1, 1, 0])
+    k = error_counts(s, GOLD)
+    assert (k["false_accepts"], k["false_rejects"]) == (0, 1)
+    assert k["fa_rule_of_three"] == pytest.approx(1.5) and k["fr_rule_of_three"] is None
+
+
+def test_strata():
+    assert stratum({"type": "numeric", "value": "2/3", "accuracy": {"kind": "exact"}}) == "value_only"
+    assert stratum({"type": "numeric", "value": "12.3"}) == "form_sensitive"            # 3 s.f. default
+    assert stratum({"type": "numeric", "value": "4", "accuracy": {"kind": "exact"}, "unit": "cm"}) == "form_sensitive"
+    assert stratum({"type": "expression", "value": "x+1", "variables": ["x"]}) == "form_sensitive"
+
+
+def test_spec_examples_are_valid_for_the_grader_in_src():
+    for _, s in spec_examples():
+        validate_spec(__import__("json").loads(s))
+
+
+def test_grader_fingerprint_is_stable():
+    assert grader_fingerprint() == grader_fingerprint()
