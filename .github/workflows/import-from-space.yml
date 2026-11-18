@@ -1,0 +1,34 @@
+# Run ONCE (Actions tab -> "Import app from Hugging Face Space" -> Run workflow).
+# Copies the newer app files that only exist on the Space into this repository,
+# so GitHub becomes the single source of truth. Needs no token: the Space is public.
+name: Import app from Hugging Face Space
+
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy the Space's newer app files
+        run: |
+          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://huggingface.co/spaces/wandiya39/IGCSE-Math-Tutor space
+          cp space/Dockerfile Dockerfile
+          cp space/scrape_pdfs.py scrape_pdfs.py
+          cp space/src/agent/ui.py space/src/agent/chat.py src/agent/
+          mkdir -p src/utils
+          cp space/src/utils/grader.py src/utils/grader.py
+          rm -rf space
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "Import newer app files from the Hugging Face Space" || echo "Nothing new to import"
+          git push
