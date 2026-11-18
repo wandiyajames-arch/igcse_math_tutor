@@ -41,7 +41,14 @@ pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest -q
 ```
 
-The suite has 178 tests: parser ambiguity and limits, 25 hostile inputs, 3,000 fuzzed inputs, certified π/√ enclosures, 87 labelled cases with their marking basis (`tests/grading_cases/cases.json`), property tests, and sandbox tests (timeout, memory limit, file-write block, concurrency). The labelled cases are **developer-written regression tests, not an independent evaluation**.
+The grader suite has 178 tests (195 with the evaluation-harness tests): parser ambiguity and limits, 25 hostile inputs, 3,000 fuzzed inputs, certified π/√ enclosures, 87 labelled cases with their marking basis (`tests/grading_cases/cases.json`), property tests, and sandbox tests (timeout, memory limit, file-write block, concurrency). The labelled cases are **developer-written regression tests, not an independent evaluation**.
+
+## Evaluation harness (GAIE 2027)
+
+`evaluation/` holds the full evaluation protocol: test-set authoring and freezing, two-rater labelling,
+LLM-judge baselines with abstention, risk–coverage analysis, clustered bootstrap, leakage study and paper
+tables. See [`evaluation/README.md`](evaluation/README.md). The harness also runs unchanged on the original
+grader developed by Angelah Kgato Gaolatlhe, which is the version evaluated in the paper.
 
 ## Marking rules
 
