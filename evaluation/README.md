@@ -1,7 +1,7 @@
 # Evaluation harness (GAIE 2027)
 
 Implements the evaluation protocol **v1.1**, agreed with Dr. Wade on 21 November 2026 and frozen on
-23 November (fingerprints in the public `protocol-v1.1-freeze` release). Section numbers below refer to
+23 November (fingerprints in the public `protocol-v1.1-frozen` release). Section numbers below refer to
 that protocol.
 
 **Which grader is tested.** The paper evaluates Angelah's grader (`src/grading/` in
