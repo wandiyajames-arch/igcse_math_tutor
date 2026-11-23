@@ -44,6 +44,8 @@ class GraderHandle:
 
     def grade(self, spec: dict, text: str) -> tuple[str, str]:
         """(status, reason) – status is correct | incorrect | abstain."""
+        if is_unsupported(spec):  # protocol §3: included part the grader cannot express -> always abstain
+            return "abstain", "spec_unsupported"
         try:
             if self.flavour == "angelah":
                 v = self._grader.grade(spec, text)
@@ -83,8 +85,18 @@ class GraderHandle:
         self.close()
 
 
+UNSUPPORTED = "unsupported"
+
+
+def is_unsupported(spec: dict) -> bool:
+    """An included part whose answer the grader's spec format cannot express (e.g. an inequality)."""
+    return (spec or {}).get("type") == UNSUPPORTED
+
+
 def validate_spec(spec: dict) -> None:
     """Raise if the spec is not valid for the grader in ``src/``."""
+    if is_unsupported(spec):
+        return
     from src.models.answers import parse_answer_spec
     parse_answer_spec(spec)
 
@@ -97,6 +109,8 @@ def _components(spec: dict) -> list:
 def mark_scheme_answer(spec: dict) -> str:
     """A plain answer string built from a spec (used for the pilot only)."""
     t = spec["type"]
+    if t == UNSUPPORTED:
+        return spec.get("value", "")
     if t == "ratio":
         return ":".join(str(p) for p in spec["parts"])
     if t == "solutions":
@@ -104,6 +118,11 @@ def mark_scheme_answer(spec: dict) -> str:
     if t in ("coordinates", "vector"):
         return "(" + ", ".join(c["value"] for c in _components(spec)) + ")"
     return spec["value"]
+
+
+def item_tag(item) -> str:
+    """The value-only / form-sensitive tag set from the mark scheme (protocol §3); falls back to the spec."""
+    return getattr(item, "tag", "") or stratum(item.spec)
 
 
 def stratum(spec: dict) -> str:
@@ -115,6 +134,8 @@ def stratum(spec: dict) -> str:
     value only, so its errors on form-sensitive items are reported separately.
     """
     t = spec.get("type")
+    if t == UNSUPPORTED:
+        return "form_sensitive"
     if t in ("exact", "expression", "bearing", "ratio"):
         return "form_sensitive"
     if spec.get("equivalence") == "cao" or spec.get("unit"):
@@ -151,6 +172,7 @@ SPEC_EXAMPLES = {
         ("coordinates", '{"type":"coordinates","components":[{"type":"exact","value":"3","form":"fraction_simplest"},{"type":"exact","value":"-2","form":"fraction_simplest"}]}'),
         ("vector", '{"type":"vector","components":[{"type":"exact","value":"4","form":"fraction_simplest"},{"type":"exact","value":"-1","form":"fraction_simplest"}]}'),
         ("ratio", '{"type":"ratio","parts":[2,3,4]}'),
+        ("grader cannot express (e.g. inequality) - grader abstains", '{"type":"unsupported","value":"x > 3"}'),
     ],
     "rebuild": [
         ("numeric, 3 s.f. default", '{"type":"numeric","value":"25π","unit":"cm²"}'),
@@ -170,6 +192,7 @@ SPEC_EXAMPLES = {
         ("coordinates", '{"type":"coordinates","components":[{"type":"numeric","value":"3"},{"type":"numeric","value":"-2"}]}'),
         ("vector", '{"type":"vector","components":[{"type":"numeric","value":"4"},{"type":"numeric","value":"-1"}]}'),
         ("ratio", '{"type":"ratio","parts":[2,3,4]}'),
+        ("grader cannot express (e.g. inequality) - grader abstains", '{"type":"unsupported","value":"x > 3"}'),
     ],
 }
 

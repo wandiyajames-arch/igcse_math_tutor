@@ -2,6 +2,7 @@
 
     python -m evaluation.systems evaluation/data/test --system ours
     python -m evaluation.systems evaluation/data/test --system math_verify
+    python -m evaluation.systems evaluation/data/test --system string_match
     python -m evaluation.systems evaluation/data/test --system qwen3_4b --backend ollama:qwen3:4b
     python -m evaluation.systems evaluation/data/test --system qwen25_7b --backend ollama:qwen2.5:7b
     python -m evaluation.systems evaluation/data/test --system compass_3b --backend hf:opencompass/CompassVerifier-3B --kind compass
@@ -32,6 +33,7 @@ def _done(path: Path) -> set:
 def run_ours(ds, out: Path, timeout: float = 2.0):
     from .grader_adapter import GraderHandle, grader_fingerprint
     done = _done(out)
+    first_ms = None
     with GraderHandle(timeout) as g, out.open("a") as f:
         for r in ds.responses:
             if r.response_id in done:
@@ -40,9 +42,12 @@ def run_ours(ds, out: Path, timeout: float = 2.0):
             t0 = time.perf_counter()
             status, reason = g.grade(it.spec, r.answer)
             ms = (time.perf_counter() - t0) * 1000
+            if first_ms is None:
+                first_ms = ms  # includes starting the sandboxed worker: the cold start
             f.write(json.dumps({"response_id": r.response_id, "decision": status,
                                 "reason": reason, "latency_ms": round(ms, 3)}) + "\n")
-        meta = {"worker_peak_rss_mb": g.peak_rss_mb(), **g.info(), "grader_fingerprint": grader_fingerprint()}
+        meta = {"worker_peak_rss_mb": g.peak_rss_mb(), **g.info(), "cold_start_ms": first_ms,
+                "grader_fingerprint": grader_fingerprint()}
     return meta
 
 
@@ -80,6 +85,27 @@ def run_math_verify(ds, out: Path):
     return {}
 
 
+# --------------------------------------------------------- string match
+def normalise_ws(s: str) -> str:
+    return " ".join((s or "").split())
+
+
+def run_string_match(ds, out: Path):
+    """Minor row (protocol §2): exact match with the mark-scheme answer after whitespace normalisation.
+    It never abstains."""
+    done = _done(out)
+    with out.open("a") as f:
+        for r in ds.responses:
+            if r.response_id in done:
+                continue
+            t0 = time.perf_counter()
+            same = normalise_ws(r.answer) == normalise_ws(ds.item_of(r).mark_scheme_answer)
+            ms = (time.perf_counter() - t0) * 1000
+            f.write(json.dumps({"response_id": r.response_id, "decision": "correct" if same else "incorrect",
+                                "reason": "", "latency_ms": round(ms, 4)}) + "\n")
+    return {}
+
+
 # ----------------------------------------------------------- LLM judges
 def run_judge(ds, out: Path, backend_spec: str, kind: str = "examiner", k: int = 5,
               temperature: float = 0.7, limit: int | None = None):
@@ -101,8 +127,9 @@ def run_judge(ds, out: Path, backend_spec: str, kind: str = "examiner", k: int =
             if backend_spec == "mock":  # test-only: let the mock know the gold label
                 prompt += f"\n[[gold={ds.gold.get(r.response_id, {}).get('label', 'incorrect')}]]"
             try:
-                votes, raw, ms = sample(backend, prompt, kind, k=k, temperature=temperature)
-                rec = {"response_id": r.response_id, "votes": votes, "raw": raw, "latency_ms": round(ms, 1)}
+                votes, raw, ms, lps = sample(backend, prompt, kind, k=k, temperature=temperature)
+                rec = {"response_id": r.response_id, "votes": votes, "logprobs": lps, "raw": raw,
+                       "latency_ms": round(ms, 1)}
             except Exception as e:
                 rec = {"response_id": r.response_id, "votes": ["invalid"] * k, "raw": [], "error": str(e)[:200],
                        "latency_ms": None}
@@ -113,7 +140,8 @@ def run_judge(ds, out: Path, backend_spec: str, kind: str = "examiner", k: int =
                 per = (time.perf_counter() - t_start) / n
                 print(f"  {n}/{todo} responses, {per:.1f} s each, about {per * (todo - n) / 60:.0f} min left",
                       flush=True)
-    return {"backend": backend_spec, "kind": kind, "k": k, "temperature": temperature}
+    return {"backend": backend_spec, "kind": kind, "k": k, "temperature": temperature,
+            "seeds": list(range(k)), "model": backend.info()}
 
 
 def main(argv=None):
@@ -133,6 +161,8 @@ def main(argv=None):
         meta = run_ours(ds, out)
     elif a.system == "math_verify":
         meta = run_math_verify(ds, out)
+    elif a.system == "string_match":
+        meta = run_string_match(ds, out)
     else:
         if not a.backend:
             ap.error("--backend is required for LLM judges")

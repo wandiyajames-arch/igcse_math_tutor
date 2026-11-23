@@ -9,7 +9,7 @@ INCORRECT = {"wrong_value", "insufficient_accuracy", "rounding_error", "rounded_
              "extra_solution"}
 
 REASON_CATEGORY = {
-    "wrong_value": "wrong_value",
+    "wrong_value": "value",
     "insufficient_accuracy": "accuracy",
     "rounding_error": "accuracy",
     "rounded_exact_value": "accuracy",
@@ -17,9 +17,9 @@ REASON_CATEGORY = {
     "not_expanded": "form",
     "not_fully_factorised": "form",
     "wrong_form": "form",
-    "wrong_unit": "units_notation",
-    "missing_solution": "incomplete_extra",
-    "extra_solution": "incomplete_extra",
+    "wrong_unit": "units",
+    "missing_solution": "solution_set",
+    "extra_solution": "solution_set",
 }
 
 

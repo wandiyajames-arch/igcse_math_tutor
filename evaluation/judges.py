@@ -2,8 +2,13 @@
 
 Every judge gets the same three inputs: the question, the mark-scheme answer
 (with its notes) and the candidate answer. Each judge is sampled k = 5 times
-(temperature 0.7, fixed seeds); its confidence is the share of samples that
+(temperature 0.7, seeds 0..k-1); its confidence is the share of samples that
 agree with the majority, so it can abstain below a threshold τ.
+
+Protocol Change 3: five samples give only a few vote levels, so ties within a
+level are broken by the mean token log-probability of the majority samples'
+outputs: confidence = vote share + 0.01 · exp(mean log-prob). The bonus is below
+0.01, so it never moves an answer across a vote level (levels are 0.2 apart).
 """
 from __future__ import annotations
 
@@ -84,14 +89,25 @@ def parse_vote(kind: str, text: str) -> str:
     return "invalid"
 
 
-def aggregate(votes: list[str]) -> tuple[str, float]:
-    """Majority decision among correct/incorrect votes, and its share of all k samples."""
+TIE_BREAK_WEIGHT = 0.01
+
+
+def aggregate(votes: list[str], logprobs: list | None = None) -> tuple[str, float]:
+    """Majority decision among correct/incorrect votes and its confidence: the share of all k samples,
+    plus the within-level tie-break when per-sample mean log-probabilities are available."""
     c, i = votes.count("correct"), votes.count("incorrect")
     if c == i == 0:
         return "abstain", 0.0
     if c == i:
         return "abstain", c / len(votes)
-    return ("correct", c / len(votes)) if c > i else ("incorrect", i / len(votes))
+    label = "correct" if c > i else "incorrect"
+    conf = max(c, i) / len(votes)
+    if logprobs:
+        lp = [x for v, x in zip(votes, logprobs) if v == label and x is not None]
+        if lp:
+            import math
+            conf += TIE_BREAK_WEIGHT * math.exp(sum(lp) / len(lp))
+    return label, conf
 
 
 def decide(votes: list[str], tau: float) -> str:
@@ -107,17 +123,45 @@ class OllamaBackend:
     max_tokens: int = 16
     timeout: float = 300.0
 
+    think: bool = False  # Qwen3 thinking mode: fixed on the development set (protocol §2)
+
     def generate(self, prompt: str, temperature: float, seed: int, system: str | None = None,
                  max_tokens: int | None = None) -> str:
-        body = {"model": self.model, "prompt": prompt, "stream": False, "think": False,
+        return self.generate_scored(prompt, temperature, seed, system, max_tokens)[0]
+
+    def generate_scored(self, prompt, temperature, seed, system=None, max_tokens=None):
+        """(text, mean token log-probability or None if this Ollama version does not return them)."""
+        body = {"model": self.model, "prompt": prompt, "stream": False, "think": self.think, "logprobs": True,
                 "options": {"temperature": temperature, "seed": seed,
                             "num_predict": max_tokens or self.max_tokens}}
         if system:
             body["system"] = system
-        req = urllib.request.Request(f"{self.host}/api/generate", data=json.dumps(body).encode(),
+        d = self._post("/api/generate", body)
+        lps = [t.get("logprob") for t in (d.get("logprobs") or []) if isinstance(t, dict)]
+        lps = [x for x in lps if isinstance(x, (int, float))]
+        return d["response"], (sum(lps) / len(lps) if lps else None)
+
+    def _post(self, path, body):
+        req = urllib.request.Request(f"{self.host}{path}", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=self.timeout) as r:
-            return json.loads(r.read())["response"]
+            return json.loads(r.read())
+
+    def info(self) -> dict:
+        """Exact model digest, so laptop and Kaggle runs provably use the same weights (protocol §2)."""
+        out = {"runtime": "ollama", "model": self.model, "think": self.think}
+        try:
+            with urllib.request.urlopen(f"{self.host}/api/tags", timeout=30) as r:
+                for m in json.loads(r.read()).get("models", []):
+                    if m.get("name") == self.model or m.get("model") == self.model:
+                        out["digest"] = m.get("digest")
+                        out["size_bytes"] = m.get("size")
+                        out["details"] = m.get("details")
+            with urllib.request.urlopen(f"{self.host}/api/version", timeout=30) as r:
+                out["ollama_version"] = json.loads(r.read()).get("version")
+        except Exception as e:
+            out["digest_error"] = str(e)[:120]
+        return out
 
 
 @dataclass
@@ -144,8 +188,31 @@ class TransformersBackend:
         ids = self._tok([text], return_tensors="pt").to(self._lm.device)
         torch.manual_seed(seed)
         out = self._lm.generate(**ids, max_new_tokens=max_tokens or self.max_tokens, do_sample=temperature > 0,
-                                temperature=temperature if temperature > 0 else None)
-        return self._tok.decode(out[0][ids.input_ids.shape[1]:], skip_special_tokens=True)
+                                temperature=temperature if temperature > 0 else None,
+                                output_scores=True, return_dict_in_generate=True)
+        gen = out.sequences[0][ids.input_ids.shape[1]:]
+        self._last_lp = None
+        try:
+            sc = self._lm.compute_transition_scores(out.sequences, out.scores, normalize_logits=True)[0]
+            self._last_lp = float(sc.float().mean()) if len(sc) else None
+        except Exception:
+            pass
+        return self._tok.decode(gen, skip_special_tokens=True)
+
+    def generate_scored(self, prompt, temperature, seed, system=None, max_tokens=None):
+        text = self.generate(prompt, temperature, seed, system, max_tokens)
+        return text, self._last_lp
+
+    def info(self) -> dict:
+        out = {"runtime": "transformers", "model": self.model}
+        try:
+            from huggingface_hub import model_info
+            out["revision_sha"] = model_info(self.model).sha
+            import transformers
+            out["transformers_version"] = transformers.__version__
+        except Exception as e:
+            out["digest_error"] = str(e)[:120]
+        return out
 
 
 @dataclass
@@ -159,14 +226,22 @@ class MockBackend:
         import hashlib
         import re as _re
         h = int(hashlib.sha256(f"{prompt}|{seed}".encode()).hexdigest(), 16)
-        m = _re.search(r"Correct final answer \(for your reference only\): (.+)", prompt)
-        if m:  # mock tutor: a naive tutor that sometimes gives the answer away
+        m = _re.search(r"Final answer \(for your reference only; do NOT reveal it\): (.+)", prompt)
+        if m:  # mock tutor: an instructed tutor that sometimes still gives the answer away
             return f"Nearly there! The answer is {m.group(1).strip()}." if h % 2 else "Start by writing down what you know."
         if "Student's message" in prompt:
             return "Think about which formula links the quantities in the question."
         truth = "CORRECT" if "[[gold=correct]]" in prompt else "INCORRECT"
         other = "INCORRECT" if truth == "CORRECT" else "CORRECT"
         return truth if (h % 1000) / 1000 < self.accuracy else other
+
+    def generate_scored(self, prompt, temperature, seed, system=None, max_tokens=None):
+        import hashlib
+        h = int(hashlib.sha256(f"lp|{prompt}|{seed}".encode()).hexdigest(), 16)
+        return self.generate(prompt, temperature, seed, system, max_tokens), -((h % 1000) / 1000) * 2
+
+    def info(self) -> dict:
+        return {"runtime": "mock", "model": "mock", "digest": "mock"}
 
 
 def make_backend(spec: str):
@@ -182,9 +257,11 @@ def make_backend(spec: str):
 
 
 def sample(backend, prompt: str, kind: str, k: int = 5, temperature: float = 0.7, base_seed: int = 0):
-    votes, raw, t0 = [], [], time.perf_counter()
+    """k samples with seeds base_seed..base_seed+k-1: votes, raw outputs, mean ms per sample, log-probs."""
+    votes, raw, lps, t0 = [], [], [], time.perf_counter()
     for i in range(k):
-        txt = backend.generate(prompt, temperature, base_seed + i)
+        txt, lp = backend.generate_scored(prompt, temperature, base_seed + i)
         raw.append(txt)
+        lps.append(lp)
         votes.append(parse_vote(kind, txt))
-    return votes, raw, (time.perf_counter() - t0) * 1000 / k
+    return votes, raw, (time.perf_counter() - t0) * 1000 / k, lps

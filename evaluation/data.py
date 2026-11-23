@@ -9,9 +9,9 @@ Files (one folder per split, e.g. ``evaluation/data/test/``):
 * ``excluded.csv``     answer-line parts that cannot be specified for the grader, with a reason
                        (graphs, constructions, ...). Used for the second coverage figure.
 
-Gold labels: correct | incorrect | undecidable.
-Reason categories (incorrect only): wrong_value, accuracy, form,
-incomplete_extra, units_notation, other.
+Gold labels: correct | incorrect | undecidable ("Cannot decide").
+Reason categories (incorrect only), as in the protocol: value, accuracy, form,
+units, solution_set, other.
 """
 from __future__ import annotations
 
@@ -23,10 +23,17 @@ from pathlib import Path
 from typing import Optional
 
 LABELS = ("correct", "incorrect", "undecidable")
-CATEGORIES = ("wrong_value", "accuracy", "form", "incomplete_extra", "units_notation", "other")
-SOURCES = ("correct_form", "examiner_report", "real_student")
-EXCLUSION_REASONS = ("graph_or_diagram", "construction", "inequality_or_region", "text_explanation",
-                     "table_or_multi_box", "other")
+CATEGORIES = ("value", "accuracy", "form", "units", "solution_set", "other")
+# Protocol §4: 1 answer in the mark scheme's form, 1 in another accepted form, up to 3 errors from the
+# Principal Examiner Report, the rest from the fixed generic list. real_student is for future rounds.
+SOURCES = ("ms_form", "alt_form", "examiner_report", "generic", "real_student")
+GENERIC_ERRORS = ("premature_rounding", "wrong_accuracy", "not_simplified", "sign_error", "wrong_unit",
+                  "missing_solution")
+TYPISTS = ("author", "classmate")
+TAGS = ("value_only", "form_sensitive")
+# Protocol §3: only parts no text-based system could grade are excluded. Parts the grader cannot
+# express (inequalities, some bracketed forms) are NOT excluded: give them {"type": "unsupported"}.
+EXCLUSION_REASONS = ("drawing_or_graph", "construction_or_shading", "show_that", "explanation", "other")
 
 
 @dataclass
@@ -42,6 +49,7 @@ class Item:
     mark_scheme_answer: str      # primary mark-scheme answer (given to every judge)
     spec: dict                   # AnswerSpec for our grader
     mark_scheme_notes: str = ""  # e.g. "oe", "awrt 78.5", accepted alternatives
+    tag: str = ""                # value_only | form_sensitive, set from the mark scheme before answers exist
 
 
 @dataclass
@@ -49,8 +57,12 @@ class Response:
     response_id: str             # e.g. 0580-s25-42-q07b-r3
     item_id: str
     answer: str                  # candidate answer exactly as typed
-    source: str                  # correct_form | examiner_report | real_student
-    source_note: str = ""        # e.g. examiner-report sentence the error comes from
+    source: str                  # ms_form | alt_form | examiner_report | generic | real_student
+    source_note: str = ""        # examiner-report sentence, or the generic error name
+    description: str = ""        # plain description the answer was typed from (blind typing, Change 1)
+    typed_by: str = "author"     # author | classmate
+    intended_label: str = ""     # correct | incorrect: what the answer was built to be (Addition)
+    intended_category: str = ""  # for intended incorrect answers
 
 
 @dataclass
@@ -77,6 +89,8 @@ def validate(ds: Dataset) -> list[str]:
     from .grader_adapter import validate_spec
     errs = []
     for it in ds.items.values():
+        if it.tag and it.tag not in TAGS:
+            errs.append(f"{it.item_id}: tag must be one of {TAGS}")
         try:
             validate_spec(it.spec)
         except Exception as e:
@@ -94,6 +108,23 @@ def validate(ds: Dataset) -> list[str]:
             errs.append(f"{r.response_id}: source must be one of {SOURCES}")
         if r.source == "examiner_report" and not r.source_note:
             errs.append(f"{r.response_id}: examiner_report responses must cite the report (source_note)")
+        if r.source == "generic" and r.source_note not in GENERIC_ERRORS:
+            errs.append(f"{r.response_id}: generic responses must name the error in source_note, one of {GENERIC_ERRORS}")
+        if r.typed_by not in TYPISTS:
+            errs.append(f"{r.response_id}: typed_by must be one of {TYPISTS}")
+        if r.intended_label not in ("correct", "incorrect"):
+            errs.append(f"{r.response_id}: intended_label must be correct or incorrect")
+        elif r.intended_label == "incorrect" and r.intended_category not in CATEGORIES:
+            errs.append(f"{r.response_id}: intended incorrect answers need intended_category, one of {CATEGORIES}")
+        expected = "correct" if r.source in ("ms_form", "alt_form") else "incorrect" if r.source in (
+            "examiner_report", "generic") else None
+        if expected and r.intended_label and r.intended_label != expected:
+            errs.append(f"{r.response_id}: source {r.source} implies intended_label {expected}")
+        if not r.answer.strip():
+            errs.append(f"{r.response_id}: empty answer" + (" (waiting for classmate typing)"
+                                                             if r.typed_by == "classmate" else ""))
+        if not r.description.strip():
+            errs.append(f"{r.response_id}: description is required (classmates type from it)")
     for e in ds.excluded:
         if e.get("reason") not in EXCLUSION_REASONS:
             errs.append(f"excluded part {e.get('part_id')}: reason must be one of {EXCLUSION_REASONS}")
@@ -111,6 +142,18 @@ def load(folder) -> Dataset:
     folder = Path(folder)
     items = {d["item_id"]: Item(**d) for d in _read_jsonl(folder / "items.jsonl")}
     responses = [Response(**d) for d in _read_jsonl(folder / "responses.jsonl")]
+    # Blind typing (protocol §4, Change 1): responses drawn for classmates are typed by them from the
+    # description; until their typing is collected the answer is empty and validate() reports it.
+    assigned = folder / "typing_assignment.csv"
+    if assigned.exists():
+        chosen = {row["response_id"] for row in csv.DictReader(assigned.open(encoding="utf-8-sig"))}
+        typed_p = folder / "typed_by_classmates.csv"
+        typed = ({row["response_id"]: row["answer"] for row in csv.DictReader(typed_p.open(encoding="utf-8-sig"))}
+                 if typed_p.exists() else {})
+        for r in responses:
+            if r.response_id in chosen:
+                r.typed_by = "classmate"
+                r.answer = typed.get(r.response_id, "")
     gold = {}
     if (folder / "gold.csv").exists():
         for row in csv.DictReader((folder / "gold.csv").open(encoding="utf-8")):

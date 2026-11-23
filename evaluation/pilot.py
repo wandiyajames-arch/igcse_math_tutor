@@ -26,15 +26,21 @@ def build(folder):
     cases = regression_cases()
     items, responses, gold = [], [], []
     for c in cases:
+        if not str(c["answer"]).strip():
+            continue  # grader tests for empty input; a real answer is never empty
         iid = f"pilot-{c['id']}"
-        items.append({"item_id": iid, "split": "dev", "paper": "pilot", "session": "pipeline test",
+        items.append({"item_id": iid, "split": "dev", "paper": f"pilot/{len(items) % 4 + 1}", "session": "pipeline test",
                       "question_no": c["id"], "topic": "pilot", "answer_type": c["spec"]["type"],
                       "question": f"(Pipeline test) Give the answer. Marking basis: {c['basis']}",
                       "mark_scheme_answer": mark_scheme_answer(c["spec"]), "spec": c["spec"], "mark_scheme_notes": ""})
         rid = f"{iid}-r1"
         responses.append({"response_id": rid, "item_id": iid, "answer": c["answer"],
-                          "source": "correct_form" if c["expect"] == "correct" else "examiner_report",
-                          "source_note": "pipeline test"})
+                          "source": "ms_form" if c["expect"] == "correct" else "examiner_report",
+                          "source_note": "pipeline test", "description": "pipeline test",
+                          "typed_by": "classmate" if len(responses) % 5 == 0 else "author",
+                          "intended_label": "correct" if status_of(c["expect"]) == "correct" else "incorrect",
+                          "intended_category": REASON_CATEGORY.get(c["expect"], "other")
+                          if status_of(c["expect"]) != "correct" else ""})
         r = c["expect"]
         st = status_of(r)
         if st == "correct" or r == "equivalence_unconfirmed":
@@ -49,7 +55,7 @@ def build(folder):
         w = csv.writer(f)
         w.writerow(["part_id", "split", "paper", "question_no", "reason", "note"])
         for k in range(len(items) // 4):
-            w.writerow([f"pilot-excluded-{k}", "dev", "pilot", str(k), "graph_or_diagram", "pipeline test"])
+            w.writerow([f"pilot-excluded-{k}", "dev", "pilot", str(k), "drawing_or_graph", "pipeline test"])
     rng = random.Random(1)
     for rater in ("rater1", "rater2"):  # simulated raters with 5% disagreement
         with (folder / f"labels_{rater}.csv").open("w", newline="") as f:
@@ -58,7 +64,7 @@ def build(folder):
             for rid, lab, cat in gold:
                 if rater == "rater2" and rng.random() < 0.05:
                     lab = "incorrect" if lab == "correct" else "correct"
-                    cat = "wrong_value" if lab == "incorrect" else ""
+                    cat = "value" if lab == "incorrect" else ""
                 w.writerow([rid, lab, cat, ""])
     with (folder / "gold.csv").open("w", newline="") as f:
         w = csv.writer(f)

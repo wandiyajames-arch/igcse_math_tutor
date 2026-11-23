@@ -5,9 +5,10 @@ incorrect / none) and a confidence. Rule systems have one confidence level;
 LLM judges have the self-consistency share (0.6, 0.8, 1.0 for k = 5); the
 cascade ranks our grader's decisions above the judge's.
 
-Ties in confidence are handled by expectation (as if broken uniformly at
-random), so matched-coverage numbers do not depend on an arbitrary order.
-Only McNemar's test, which needs concrete pairs, uses a fixed tie-break seed.
+Matched coverage (protocol §6): each judge runs at the threshold whose coverage
+is closest to the grader's without falling below it, and the coverage it
+actually reached is reported (Change 3). Risk-coverage curves and AURC handle
+remaining ties by expectation, so they do not depend on an arbitrary order.
 """
 from __future__ import annotations
 
@@ -61,7 +62,7 @@ def arrays_from_run(name: str, run: dict, ids: list[str], min_conf: float = 0.0)
         if d.get("latency_ms") is not None:
             lat[i] = d["latency_ms"]
         if "votes" in d:
-            label, c = aggregate(d["votes"])
+            label, c = aggregate(d["votes"], d.get("logprobs"))
             if label != "abstain" and c >= min_conf:
                 decided[i], says[i], conf[i] = True, label == "correct", c
         else:
@@ -104,12 +105,13 @@ def summarise(sysa: SystemArrays, gold_correct: np.ndarray, w: Optional[np.ndarr
     e = np.bincount(g[sel], weights=(w * err)[sel], minlength=ng)
     a = np.bincount(g[sel], weights=(w * fa)[sel], minlength=ng)
     r = np.bincount(g[sel], weights=(w * fr)[sel], minlength=ng)
+    cc = np.bincount(g[sel], weights=(w * gold_correct)[sel], minlength=ng)
     total = w.sum()
     n_inc = (w * ~gold_correct).sum()
     n_cor = (w * gold_correct).sum()
     m_max = cnt.sum()
     m = m_max if m_target is None else min(m_target, m_max)
-    took = E = A = R = 0.0
+    took = E = A = R = C = 0.0
     for k in range(ng):
         if took >= m - 1e-12:
             break
@@ -118,12 +120,50 @@ def summarise(sysa: SystemArrays, gold_correct: np.ndarray, w: Optional[np.ndarr
         E += frac * e[k]
         A += frac * a[k]
         R += frac * r[k]
+        C += frac * cc[k]
         took += take
     return {"coverage": took / total if total else 0.0,
             "selective_risk": E / took if took else float("nan"),
             "false_accept_rate": A / n_inc if n_inc else float("nan"),
             "false_reject_rate": R / n_cor if n_cor else float("nan"),
+            "abstain_on_correct": 1 - C / n_cor if n_cor else float("nan"),
             "decided": took, "reached_target": m_target is None or m_max >= m_target - 1e-9}
+
+
+# ------------------------------------------------- operating points (§6)
+def at_mask(mask: np.ndarray, sysa: SystemArrays, gold_correct: np.ndarray, w=None) -> dict:
+    """Metrics when the system decides exactly the responses in ``mask``."""
+    w = np.ones(len(gold_correct)) if w is None else w
+    d = mask & sysa.decided
+    dec = (w * d).sum()
+    n_inc, n_cor = (w * ~gold_correct).sum(), (w * gold_correct).sum()
+    err = d & (sysa.says_correct != gold_correct)
+    return {"coverage": dec / w.sum() if w.sum() else 0.0,
+            "selective_risk": (w * err).sum() / dec if dec else float("nan"),
+            "false_accept_rate": (w * (d & sysa.says_correct & ~gold_correct)).sum() / n_inc if n_inc else float("nan"),
+            "false_reject_rate": (w * (d & ~sysa.says_correct & gold_correct)).sum() / n_cor if n_cor else float("nan"),
+            "abstain_on_correct": (w * (~d & gold_correct)).sum() / n_cor if n_cor else float("nan"),
+            "decided": dec}
+
+
+def matched_threshold(sysa: SystemArrays, target_cov: float, w=None):
+    """Highest confidence threshold whose coverage is >= target_cov (the closest without falling below).
+    Returns (threshold, reached); if no threshold reaches it, the most permissive one and False."""
+    w = np.ones(len(sysa.conf)) if w is None else w
+    total = w.sum()
+    levels = sorted(set(sysa.conf[sysa.decided].tolist()), reverse=True)
+    for t in levels:
+        if (w * (sysa.decided & (sysa.conf >= t))).sum() / total >= target_cov - 1e-12:
+            return t, True
+    return (levels[-1] if levels else np.inf), False
+
+
+def operating_point(sysa: SystemArrays, gold_correct: np.ndarray, target_cov: float, w=None) -> dict:
+    t, ok = matched_threshold(sysa, target_cov, w)
+    mask = sysa.decided & (sysa.conf >= t)
+    out = at_mask(mask, sysa, gold_correct, w)
+    out.update({"threshold": float(t), "reached_target": ok, "mask": mask})
+    return out
 
 
 def risk_coverage_curve(sysa: SystemArrays, gold_correct: np.ndarray, points: int = 200):
@@ -188,9 +228,10 @@ def mcnemar_exact(b: int, c: int) -> float:
     return min(1.0, p)
 
 
-def paired_test(ours: SystemArrays, other: SystemArrays, gold_correct: np.ndarray, m: int, seed: int = 0):
+def paired_test(ours: SystemArrays, other: SystemArrays, gold_correct: np.ndarray, other_mask: np.ndarray):
+    """Exact McNemar on per-answer errors, on the answers both systems decide at matched coverage."""
     o = ours.decided
-    s = concrete_topm(other, m, seed)
+    s = other_mask & other.decided
     both = o & s
     ok_o = ours.says_correct == gold_correct
     ok_s = other.says_correct == gold_correct
@@ -198,6 +239,41 @@ def paired_test(ours: SystemArrays, other: SystemArrays, gold_correct: np.ndarra
     c = int((both & ~ok_o & ok_s).sum())
     return {"n_both": int(both.sum()), "ours_right_other_wrong": b, "ours_wrong_other_right": c,
             "p_value": mcnemar_exact(b, c)}
+
+
+def reason_confusion(ours: SystemArrays, gold_labels: list[str], gold_cats: list[str]):
+    """RQ2: 6 x 6 counts (rows = gold category, columns = grader category) on answers both call incorrect,
+    and Cohen's kappa between the two."""
+    from .data import CATEGORIES, cohen_kappa
+    m = {g: {c: 0 for c in CATEGORIES} for g in CATEGORIES}
+    a, b = [], []
+    for i, (lab, cat) in enumerate(zip(gold_labels, gold_cats)):
+        if lab == "incorrect" and ours.decided[i] and not ours.says_correct[i]:
+            mine = REASON_CATEGORY.get(ours.reason[i])
+            if mine is None or cat not in m:
+                continue
+            m[cat][mine] += 1
+            a.append(cat)
+            b.append(mine)
+    return {"categories": list(CATEGORIES), "matrix": m, "n": len(a),
+            "kappa": cohen_kappa(a, b) if len(set(a) | set(b)) > 1 else (1.0 if a else float("nan"))}
+
+
+def intended_vs_gold(responses, gold: dict) -> dict:
+    """Protocol Addition: how often the gold label differs from the label the answer was built to have."""
+    rows = [(r, gold[r.response_id]["label"]) for r in responses
+            if r.response_id in gold and r.intended_label in ("correct", "incorrect")]
+    table = {}
+    examples = []
+    for r, g in rows:
+        key = f"{r.intended_label}->{g}"
+        table[key] = table.get(key, 0) + 1
+        if g != r.intended_label and len(examples) < 50:
+            examples.append({"response_id": r.response_id, "answer": r.answer, "source": r.source,
+                             "source_note": r.source_note, "intended": r.intended_label, "gold": g})
+    differ = sum(v for k, v in table.items() if k.split("->")[0] != k.split("->")[1])
+    return {"n": len(rows), "differ": differ, "share": differ / len(rows) if rows else float("nan"),
+            "table": table, "examples": examples}
 
 
 def reason_agreement(ours: SystemArrays, gold_labels: list[str], gold_cats: list[str], w=None):

@@ -4,13 +4,19 @@ Two stages, matching the protocol (specs are written from the mark scheme
 before any candidate answer exists):
 
     python -m evaluation.freeze specs   evaluation/data/test   # after the specs, before answers
-    python -m evaluation.freeze answers evaluation/data/test   # after the answers, before any run
+    python -m evaluation.freeze answers evaluation/data/test   # after the answers (and classmate typing), before any run
+    python -m evaluation.freeze gold    evaluation/data/test   # after adjudication, before scoring
     python -m evaluation.freeze verify  evaluation/data/test   # any time; the report runs it too
 
-``specs`` writes FREEZE_specs.json (items + grader + prompts); ``answers``
-writes FREEZE.json (adds responses and excluded parts). A stage is never
-overwritten. Put both files in the protocol/appendix: anyone can re-check that
-nothing changed after the freeze.
+``specs`` writes FREEZE_specs.json (items, exclusions, grader, prompts);
+``answers`` writes FREEZE.json (adds the answers and the blind-typing files);
+``gold`` writes FREEZE_gold.json (adds both raters' labels and the gold labels).
+A stage is never overwritten.
+
+Protocol Change 2: hashes kept in a private repository prove nothing to a
+reviewer, so each FREEZE*.json is published the day it is made in a public,
+timestamped place (a public GitHub release, plus OSF) and the link is cited in
+the paper. The files hold only hashes and fingerprints, never Cambridge text.
 """
 from __future__ import annotations
 
@@ -24,8 +30,15 @@ from pathlib import Path
 
 from .grader_adapter import ROOT, grader_fingerprint
 
-STAGE_FILES = {"specs": ("items.jsonl",), "answers": ("items.jsonl", "responses.jsonl", "excluded.csv")}
-STAGE_OUT = {"specs": "FREEZE_specs.json", "answers": "FREEZE.json"}
+STAGE_FILES = {
+    "specs": ("items.jsonl", "excluded.csv", "selected_items.txt"),
+    "answers": ("items.jsonl", "excluded.csv", "selected_items.txt", "responses.jsonl", "typing_guide.txt",
+                "typing_assignment.csv", "typed_by_classmates.csv"),
+    "gold": ("responses.jsonl", "typed_by_classmates.csv", "labels_rater1.csv", "labels_rater2.csv",
+             "disagreements.csv", "gold.csv"),
+}
+STAGE_OUT = {"specs": "FREEZE_specs.json", "answers": "FREEZE.json", "gold": "FREEZE_gold.json"}
+PREVIOUS = {"answers": "specs", "gold": "answers"}
 
 
 def _sha(p: Path):
@@ -35,8 +48,7 @@ def _sha(p: Path):
 def prompts_fingerprint() -> str:
     from . import judges, leakage
     h = hashlib.sha256()
-    for text in (judges.CV_PROMPT, judges.EXAMINER_PROMPT, leakage.HINT_VISIBLE, leakage.STUDENT_MESSAGES[0],
-                 leakage.STUDENT_MESSAGES[1]):
+    for text in (judges.CV_PROMPT, judges.EXAMINER_PROMPT, leakage.TUTOR_WITH_ANSWER, *leakage.STUDENT_MESSAGES):
         h.update(text.encode())
         h.update(b"\0")
     return h.hexdigest()
@@ -60,15 +72,22 @@ def create(folder, stage: str) -> Path:
     out = folder / STAGE_OUT[stage]
     if out.exists():
         raise SystemExit(f"{out} already exists: a freeze is never overwritten")
-    if stage == "answers" and not (folder / STAGE_OUT["specs"]).exists():
-        print("warning: no FREEZE_specs.json – specs were not frozen before the answers were written")
+    prev = PREVIOUS.get(stage)
+    if prev and not (folder / STAGE_OUT[prev]).exists():
+        print(f"warning: no {STAGE_OUT[prev]} – the {prev} stage was not frozen first")
+    if stage == "answers":
+        from .data import load, validate
+        bad = [p for p in validate(load(folder)) if "gold" not in p]
+        if bad:
+            raise SystemExit("fix these before freezing the answers:\n  " + "\n  ".join(bad[:20]))
     if stage == "answers" and (folder / "runs").exists() and any((folder / "runs").glob("*.jsonl")):
         raise SystemExit("runs/ already has results: freeze the answers before running any system")
     snap = snapshot(folder, stage)
     snap.update({"created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "git_commit": _git_commit(),
                  "python": sys.version.split()[0]})
     out.write_text(json.dumps(snap, indent=1) + "\n")
-    print(f"wrote {out}")
+    print(f"wrote {out}\nNow publish it publicly the same day (protocol Change 2): attach it to a public GitHub "
+          f"release and upload it to OSF, then note the link in the paper.")
     return out
 
 
@@ -99,7 +118,7 @@ def verify(folder, quiet: bool = False) -> dict:
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["specs", "answers", "verify"])
+    ap.add_argument("cmd", choices=["specs", "answers", "gold", "verify"])
     ap.add_argument("folder")
     a = ap.parse_args(argv)
     if a.cmd == "verify":
