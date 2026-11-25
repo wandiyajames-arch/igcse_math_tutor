@@ -4,8 +4,10 @@ Implements the evaluation protocol **v1.1**, agreed with Dr. Wade on 21 November
 23 November (fingerprints in the public `protocol-v1.1-frozen` release). Section numbers below refer to
 that protocol.
 
-**Which grader is tested.** The paper evaluates Angelah's grader (`src/grading/` in
-`angelah/igcse-math-tutor-research`, commit `439ce32`, tag `gaie-eval-v1`). This folder runs unchanged on
+**Which grader is tested.** The paper evaluates Angelah's grader (`src/grading/` in the private research
+repository, commit `439ce321a9a5f06d9173f2c81201426d7a534de8`, annotated tag `gaie-eval-v1`, `src/grading` tree
+`92ec6559…`, harness fingerprint `2db5cf2d…100d`). The tag was created on 26 November, not 23 November: see
+[`DEVIATIONS.md`](DEVIATIONS.md). This folder runs unchanged on
 her repository and on this one; `grader_adapter.py` detects which grader is in `src/` and is the only place
 that talks to it. Nothing in `evaluation/` edits `src/`, so the frozen grader stays frozen.
 
